@@ -2,7 +2,7 @@
 
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
-from extensions import db, login_manager
+from extensions import db
 
 class User(UserMixin, db.Model):
     """Database model for a registered user."""
@@ -13,20 +13,18 @@ class User(UserMixin, db.Model):
 
     def set_password(self, password: str) -> None:
         """Hash and store the given plain-text password."""
-        self.password_hash = generate_password_hash(password)
-
+        # use PBKDF2 instead of the default scrypt
+        self.password_hash = generate_password_hash(
+            password,
+            method="pbkdf2:sha256",
+            salt_length=16,
+        )
     def check_password(self, password: str) -> bool:
         """Return True if the given password matches the stored hash."""
         return check_password_hash(self.password_hash, password)
 
 
     def __repr__(self):
-        return f"<User {self.email}"
+        return f"<User {self.email}>"
     
 
-#tell Flask-Login how to load a user 
-
-@login_manager.user_loader
-def load_user(user_id):
-    """Tell Flask-Login how to load a user from the stored ID."""
-    return User.query.get(int(user_id))
