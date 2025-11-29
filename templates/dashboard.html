@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <h2>Your Degree Plans</h2>
+
+  {% if degree_plans %}
+    <ul>
+      {% for plan in degree_plans %}
+        <li>{{ plan.name }}</li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>No plans yet. Later this page will show your degree plans.</p>
+  {% endif %}
+{% endblock %}

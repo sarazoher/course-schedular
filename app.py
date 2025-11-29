@@ -1,4 +1,4 @@
-from flask import Flask, render_template
+from flask import Flask
 from config import Config
 from extensions import db, login_manager
 
@@ -9,15 +9,13 @@ def create_app():
     # init extentions
     db.init_app(app)
     login_manager.init_app(app)
-    login_manager.login_view = "login" # we'll use later for @login_required
 
-    # importing models after extintions are initalized 
-    from models.user import User
+    # import and register blueprints
+    from auth.routes import auth_bp
+    from routes.main import main_bp
 
-    #Home route
-    @app.route("/")
-    def home():
-        return render_template("home.html")
+    app.register_blueprint(auth_bp)
+    app.register_blueprint(main_bp)
     
     return app
 
