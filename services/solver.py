@@ -1,5 +1,3 @@
-# services/solver.py
-
 from typing import Dict, List
 from pulp import (
     LpProblem,

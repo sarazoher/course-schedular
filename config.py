@@ -1,6 +1,4 @@
 import os
-# config.py
-import os
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 instance_dir = os.path.join(basedir, "instance")
