@@ -20,6 +20,7 @@ def build_model(
     use_prereqs: bool,
     minimize_last_semester: bool,
 ):
+
     """
     Core model builder.
     Well use the boolean flags above to decide which pieces are active.
@@ -76,6 +77,122 @@ def build_model(
         ), "minimize_sum_semesters"
 
     return model, x
+
+
+
+def build_inputs_from_plan(plan_id: int) -> Dict:
+    """
+    Load data from the database for a given DegreePlan and convert it into
+    the exact dictionaries that build_model(...) expects.
+
+    Returns a dict with keys:
+        - courses: List[str]                  # course codes (solver IDs)
+        - prereqs: Dict[str, List[str]]       # course_code -> [prereq_code, ...]
+        - credits: Dict[str, int]
+        - max_credits_per_semester: Dict[int, int]
+    """
+    # Lazy imports to avoid circular imports with app/__init__
+    from models.degree_plan import DegreePlan
+    from models.course import Course
+    from models.course_offering import CourseOffering
+    from models.prerequisite import Prerequisite
+    from models.plan_constraint import PlanConstraint
+
+    # 1) Get the plan (service layer → use .get + ValueError, not get_or_404)
+    plan = DegreePlan.query.get(plan_id)
+    if plan is None:
+        raise ValueError(f"DegreePlan with id={plan_id} not found")
+
+    # 2) Courses for this plan
+    course_rows: List[Course] = (
+        Course.query
+        .filter_by(degree_plan_id=plan.id)
+        .order_by(Course.id)
+        .all()
+    )
+    if not course_rows:
+        raise ValueError(f"No courses defined for plan_id={plan_id}")
+
+    # We'll use course.code as the solver's ID
+    courses: List[str] = [c.code for c in course_rows]
+    code_by_id: Dict[int, str] = {c.id: c.code for c in course_rows}
+    credits: Dict[str, int] = {c.code: c.credits for c in course_rows}
+
+    # 3) Plan constraints: total_semesters + global max_credits_per_semester
+    constraints: PlanConstraint | None = PlanConstraint.query.filter_by(
+        degree_plan_id=plan.id
+    ).first()
+
+    if constraints and constraints.total_semesters:
+        total_semesters = constraints.total_semesters
+    else:
+        # fallback if not set yet – we can tune later
+        total_semesters = 6
+
+    if constraints and constraints.max_credits_per_semester:
+        default_max_credits = constraints.max_credits_per_semester
+    else:
+        # fallback: effectively no limit
+        default_max_credits = 9999
+
+    # max_credits_per_semester dict: same value for each semester for now
+    max_credits_per_semester: Dict[int, int] = {
+        s: default_max_credits for s in range(1, total_semesters + 1)
+    }
+
+    # 4) Allowed semesters from CourseOffering
+    #
+    # CourseOffering has:
+    #    course_id
+    #    semester_number
+    #
+    # Each Course row has .offerings backref (because of the relationship).
+    allowed_semesters: Dict[str, List[int]] = {c.code: [] for c in course_rows}
+
+    for c in course_rows:
+        for off in c.offerings:
+            # Just trust the semester_number as given
+            allowed_semesters[c.code].append(off.semester_number)
+
+    # If there are no offerings at all, or some courses have no offerings,
+    # allow them in all semesters 1..total_semesters.
+    any_offerings = any(allowed_semesters[c] for c in allowed_semesters)
+    if not any_offerings:
+        # nothing defined at all → everything allowed everywhere
+        for c in courses:
+            allowed_semesters[c] = list(range(1, total_semesters + 1))
+    else:
+        # fill gaps only for courses that had no offerings
+        for c in courses:
+            if not allowed_semesters[c]:
+                allowed_semesters[c] = list(range(1, total_semesters + 1))
+
+    # Sort & deduplicate for sanity
+    for code in allowed_semesters:
+        allowed_semesters[code] = sorted(set(allowed_semesters[code]))
+
+    # 5) Prereqs from Prerequisite table
+    prereq_rows: List[Prerequisite] = Prerequisite.query.filter_by(
+        degree_plan_id=plan.id
+    ).all()
+
+    prereqs: Dict[str, List[str]] = {c.code: [] for c in course_rows}
+
+    for row in prereq_rows:
+        course_code = code_by_id.get(row.course_id)
+        prereq_code = code_by_id.get(row.prereq_course_id)
+        if course_code is None or prereq_code is None:
+            # Either FK points to a course in a different plan or missing – skip
+            continue
+        prereqs[course_code].append(prereq_code)
+
+    return {
+        "courses": courses,
+        "prereqs": prereqs,
+        "allowed_semesters": allowed_semesters,
+        "credits": credits,
+        "max_credits_per_semester": max_credits_per_semester,
+    }
 
 
 # --------------------------------------------------------
