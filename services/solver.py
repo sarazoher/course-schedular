@@ -88,6 +88,7 @@ def build_inputs_from_plan(plan_id: int) -> Dict:
     Returns a dict with keys:
         - courses: List[str]                  # course codes (solver IDs)
         - prereqs: Dict[str, List[str]]       # course_code -> [prereq_code, ...]
+        - allowed_semesters: Dict[str, List[int]]
         - credits: Dict[str, int]
         - max_credits_per_semester: Dict[int, int]
     """
