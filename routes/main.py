@@ -134,3 +134,89 @@ def solve_plan(plan_id: int):
         semesters=semesters,
         courses_by_semester=courses_by_semester,
     )
+
+
+
+#EDIT DOCUMINTATIONSSS########################################################################################
+
+
+
+
+@main_bp.route("/plans/<int:plan_id>")
+@login_required
+def view_plan(plan_id: int):
+    """
+    
+    show a single plan, with its courses listed and a simple 'add course' form
+    
+    :param plan_id: ID of degree plan to show 
+    :type plan_id: int
+    """
+    plan = DegreePlan.query.filter_by(
+        id = plan_id,
+        user_id = current_user.id,
+    ).first()
+    if plan is None:
+        abort(404)
+    courses = Course.query.filter_by(degree_plan_id=plan.id).order_by(Course.id).all()
+
+    return render_template(
+        "plan_detail.html", 
+        plan = plan,
+        courses = courses,
+    )
+
+@main_bp.route("/plans/<int:plan_id>/courses/add", methods=["POST"])
+@login_required
+def add_course(plan_id: int):
+
+    plan = DegreePlan.query.filter_by(
+        id = plan_id,
+        user_id= current_user.id,
+    ).first()
+    if plan is None:
+        abort(404)
+
+    code = request.form.get("code", "").strip()
+    name = request.form.get("name", "").strip()
+    credits_raw = request.form.get("credits", "").strip()
+    difficulty_raw = request.form.get("difficulty", "").strip()
+
+    if not code or not name:
+        flash("course code and name are required", "errorr")
+        return redirect(url_for("main.view_plan", plan_id=plan.id))
+
+    try:
+        credits_val = int(credits_raw) if credits_raw else 0
+    except ValueError:
+        flash("Credits must be a number", "error")
+        return redirect(url_for("main.view_plan", plan_id=plan.id))
+
+    #try:
+    #    difficulty_val = int(difficulty_raw) if difficulty_raw else None
+    #except ValueError:
+    #    flash("Difficulty must be a number.", "error")
+    #    return redirect(url_for("main.view_plan", plan_id=plan.id))
+    difficulty_val = None # temporarily ignoring difficulty 
+
+    #make sure course codes are unique within a specific plan (no duplicates)
+    exists = Course.query.filter_by(
+        degree_plan_id= plan.id,
+        code=code,
+    ).first()
+    if exists:
+        flash("A course with that code already exists in this plan.", "error")
+        return redirect(url_for("main.view_plan", plan_id=plan.id))
+    
+    course = Course(
+        degree_plan_id = plan.id,
+        code=code,
+        name=name,
+        credits=credits_val,
+        difficulty=difficulty_val,
+    )
+    db.session.add(course)
+    db.session.commit()
+
+    flash("Course added.", "success")
+    return redirect(url_for("main.view_plan", plan_id=plan.id))
