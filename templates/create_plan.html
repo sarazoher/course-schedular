@@ -1,15 +1,20 @@
 {% extends "base.html" %}
 
 {% block content %}
-  <h2>Create a New Degree Plan</h2>
+  <h2>Create a new degree plan</h2>
 
-  <form method="POST">
+  <form method="POST" action="{{ url_for('main.create_plan') }}" class="mt-3" style="max-width: 500px;">
     <div class="mb-3">
-      <label class="form-label">Plan name</label>
-      <input class="form-control" type="text" name="name" required>
+      <label for="name" class="form-label">Plan name</label>
+      <input type="text" id="name" name="name" class="form-control" required>
     </div>
 
-    <button class="btn btn-primary" type="submit">Create plan</button>
-    <a class="btn btn-secondary ms-2" href="{{ url_for('main.dashboard') }}">Cancel</a>
+    <button type="submit" class="btn btn-primary">
+      Create plan
+    </button>
+
+    <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">
+      Cancel
+    </a>
   </form>
 {% endblock %}

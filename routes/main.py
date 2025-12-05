@@ -136,22 +136,11 @@ def solve_plan(plan_id: int):
     )
 
 
-
-#EDIT DOCUMINTATIONSSS########################################################################################
-
-
-
-
 @main_bp.route("/plans/<int:plan_id>")
 @login_required
 def view_plan(plan_id: int):
-    """
-    
-    show a single plan, with its courses listed and a simple 'add course' form
-    
-    :param plan_id: ID of degree plan to show 
-    :type plan_id: int
-    """
+
+    # show a single plan, with its courses listed and a simple 'add course' form
     plan = DegreePlan.query.filter_by(
         id = plan_id,
         user_id = current_user.id,
