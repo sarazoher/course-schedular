@@ -23,6 +23,19 @@
               {% endif %}
             </small>
           </div>
+          <div class="btn-group">
+            <a href="{{ url_for('main.edit_course',
+                                 plan_id=plan.id,
+                                 course_id=course.id) }}"
+                 class="btn btn-sm btn-outline-secondary">
+                 Edit
+
+            </a>
+
+          </div>
+
+
+
         </li>
       {% endfor %}
     </ul>

@@ -136,22 +136,12 @@ def solve_plan(plan_id: int):
     )
 
 
-
-#EDIT DOCUMINTATIONSSS########################################################################################
-
-
-
-
 @main_bp.route("/plans/<int:plan_id>")
 @login_required
 def view_plan(plan_id: int):
-    """
+   # show a single plan, with its courses listed and a simple 'add course' form
+
     
-    show a single plan, with its courses listed and a simple 'add course' form
-    
-    :param plan_id: ID of degree plan to show 
-    :type plan_id: int
-    """
     plan = DegreePlan.query.filter_by(
         id = plan_id,
         user_id = current_user.id,
@@ -220,3 +210,70 @@ def add_course(plan_id: int):
 
     flash("Course added.", "success")
     return redirect(url_for("main.view_plan", plan_id=plan.id))
+
+
+@main_bp.route("/plans/<int:plan_id>/courses/<int:course_id>/edit", methods=["GET", "POST"])
+@login_required
+def edit_course(plan_id: int, course_id: int):
+    # 1) Make sure the plan belongs to the current user
+    plan = DegreePlan.query.filter_by(
+        id=plan_id,
+        user_id=current_user.id,
+    ).first()
+    if plan is None:
+        abort(404)
+
+    # 2) Look up the course inside this plan
+    course = Course.query.filter_by(
+        id=course_id,
+        degree_plan_id=plan.id,
+    ).first()
+    if course is None:
+        abort(404)
+
+    if request.method == "POST":
+        code = request.form.get("code", "").strip()
+        name = request.form.get("name", "").strip()
+        credits_raw = request.form.get("credits", "").strip()
+        difficulty_raw = request.form.get("difficulty", "").strip()
+
+        if not code or not name:
+            flash("Course code and name are required.", "error")
+            return redirect(url_for("main.edit_course", plan_id=plan.id, course_id=course.id))
+
+        # parse credits
+        try:
+            credits_val = int(credits_raw) if credits_raw else 0
+        except ValueError:
+            flash("Credits must be a number.", "error")
+            return redirect(url_for("main.edit_course", plan_id=plan.id, course_id=course.id))
+
+        # parse difficulty (optional)
+        try:
+            difficulty_val = int(difficulty_raw) if difficulty_raw else None
+        except ValueError:
+            flash("Difficulty must be a number.", "error")
+            return redirect(url_for("main.edit_course", plan_id=plan.id, course_id=course.id))
+
+        # ensure codes are unique within this plan (excluding this course)
+        existing = Course.query.filter_by(
+            degree_plan_id=plan.id,
+            code=code,
+        ).first()
+        if existing and existing.id != course.id:
+            flash("Another course with that code already exists in this plan.", "error")
+            return redirect(url_for("main.edit_course", plan_id=plan.id, course_id=course.id))
+
+        # update course
+        course.code = code
+        course.name = name
+        course.credits = credits_val
+        course.difficulty = difficulty_val
+
+        db.session.commit()
+        flash("Course updated.", "success")
+        return redirect(url_for("main.view_plan", plan_id=plan.id))
+
+    # GET: show the edit form
+    return render_template("edit_course.html", plan=plan, course=course)
+
