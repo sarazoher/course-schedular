@@ -277,3 +277,30 @@ def edit_course(plan_id: int, course_id: int):
     # GET: show the edit form
     return render_template("edit_course.html", plan=plan, course=course)
 
+@main_bp.route("/plan/<int:plan_id>/courses/<int:course_id>/delete", methods=["POST"])
+@login_required
+def delete_course(plan_id: int, course_id: int):
+    # makeing sure plan belomgs to current use
+    plan = DegreePlan.query.filter_by(
+        id=plan_id,
+        user_id=current_user.id,
+    ).first()
+    if plan is None:
+        abort(404)
+
+        #find the course inside this plan
+        course = Course.query.filter_by(
+            id=course_id,
+            degree_plan_id=plan.id,
+        ).first()
+        if course is None:
+            abort(404)
+
+        # Delete and Save]
+        db.session.delete(course)
+        db.session.commit()
+
+        flash("Course deleted.", "success")
+        return redirect(url_for("main.view_plan", plan_id=plan.id))
+
+
