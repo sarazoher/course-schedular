@@ -12,6 +12,8 @@ from flask_login import login_required, current_user
 from extensions import db
 from models.degree_plan import DegreePlan
 from models.course import Course
+from models.course_offering import CourseOffering
+from models.plan_constraint import PlanConstraint
 
 from services.solver import build_inputs_from_plan, build_model
 from pulp import PULP_CBC_CMD, LpStatus
@@ -277,6 +279,7 @@ def edit_course(plan_id: int, course_id: int):
     # GET: show the edit form
     return render_template("edit_course.html", plan=plan, course=course)
 
+
 @main_bp.route("/plan/<int:plan_id>/courses/<int:course_id>/delete", methods=["POST"])
 @login_required
 def delete_course(plan_id: int, course_id: int):
@@ -288,19 +291,86 @@ def delete_course(plan_id: int, course_id: int):
     if plan is None:
         abort(404)
 
-        #find the course inside this plan
-        course = Course.query.filter_by(
-            id=course_id,
-            degree_plan_id=plan.id,
-        ).first()
-        if course is None:
-            abort(404)
+    #find the course inside this plan
+    course = Course.query.filter_by(
+        id=course_id,
+        degree_plan_id=plan.id,
+    ).first()
+    if course is None:
+        abort(404)
 
-        # Delete and Save]
-        db.session.delete(course)
+    # Delete and Save
+    # db.session.delete(course)
+    db.session.commit()
+
+    flash("Course deleted.", "success")
+    return redirect(url_for("main.view_plan", plan_id=plan.id))
+
+
+@main_bp.route("/plans/<int:plan_id>/courses/<int:course_id>/offerings", methods=["GET", "POST"])
+@login_required
+def edit_offerings(plan_id: int, course_id: int):
+    # 1- Making sure plan belongs to current user
+    plan = DegreePlan.query.filter_by(
+        id=plan_id,
+        user_id=current_user.id,
+    ).first()
+    if plan is None:
+        abort(404)
+
+    # 2- Making sure course belongs to this plan
+    course = Course.query.filter_by(
+        id=course_id,
+        degree_plan_id=plan.id,
+    ).first()
+    if course is None:
+        abort(404)
+
+    # 3- How many semesters should we show
+    pc = PlanConstraint.query.filter_by(degree_plan_id=plan.id).first()
+    total_semesters = pc.total_semesters if pc and pc.total_semesters else 6
+
+    if request.method == "POST":
+        selected_raw = request.form.getlist("semesters")
+
+        try:
+            selected_nums = [int(s) for s in selected_raw]
+        except ValueError:
+            flash("Invalid semester selection.", "error")
+            return redirect(url_for("main.edit_offerings", plan_id.id, course_id=course.id))
+        
+        # Clear existing offerings for this course
+        CourseOffering.query.filter_by(course_id=course.id).delete()
+
+        # Re-add Offerings only for VALID semester
+        for s in selected_nums:
+            if 1 <= s <= total_semesters:
+                db.session.add(
+                    CourseOffering(
+                        course_id=course.id,
+                        semester_number=s,
+                    )
+                )
+
         db.session.commit()
-
-        flash("Course deleted.", "success")
+        flash("Offerings Updated.", "success")
         return redirect(url_for("main.view_plan", plan_id=plan.id))
+    
+    # GET: collect currently selected semesters
+    # assumes a relationship Course.offerings exists
+    existing_semesters = {o.semester_number for o in course.offerings}
 
-
+    return render_template(
+        "edit_offerings.html",
+        plan=plan,
+        course=course,
+        total_semesters=total_semesters,
+        selected_semesters=existing_semesters,
+    )
+""" 
+In function above, every branch here either
+        ●   aborts with 404
+        ●   redirects
+        ● OR renders a template 
+    to try and avoid Flask view return error 
+""" 
