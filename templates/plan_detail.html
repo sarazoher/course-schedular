@@ -27,8 +27,15 @@
             <a href="{{ url_for('main.edit_course', plan_id=plan.id,course_id=course.id) }}"
                class="btn btn-sm btn-outline-secondary">
                 Edit
-
+              
+              </a>
+            <div class="btn-group">
+            <a href="{{ url_for('main.edit_offerings', plan_id=plan.id, course_id=course.id) }}"
+               class="btn btn-sm btn-outline-secondary"
+            >
+               Offerings
             </a>
+
             <form
               method="POST"
               action="{{ url_for('main.delete_course', plan_id=plan.id, course_id=course.id) }}" 
