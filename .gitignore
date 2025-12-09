@@ -1,6 +1,66 @@
-venv/
+# ------------------------
+# Python
+# ------------------------
 __pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pdb
+*.so
+
+# Virtual environment
+venv/
+env/
+ENV/
+
+# Byte-compiled / optimized / DLL files
 *.pyc
+*.pyo
+
+# ------------------------
+# Flask / App files
+# ------------------------
+instance/
 *.db
 *.sqlite
+*.sqlite3
+
+# Don't ignore migrations folder itself, only its contents
+migrations/versions/
+
+# ------------------------
+# Environment / secrets
+# ------------------------
 .env
+*.env
+
+# ------------------------
+# macOS system files
+# ------------------------
+.DS_Store
+**/.DS_Store
+
+# Prevent Finder metadata
+._*
+
+# macOS thumbnail cache
+.DS_Store?
+Icon?
+Thumbs.db
+
+# ------------------------
+# VS Code
+# ------------------------
+.vscode/
+.history/
+
+# ------------------------
+# Logs
+# ------------------------
+*.log
+
+# ------------------------
+# Other
+# ------------------------
+*.swp
+*.swo
