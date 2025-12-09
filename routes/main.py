@@ -369,8 +369,8 @@ def edit_offerings(plan_id: int, course_id: int):
     )
 """ 
 In function above, every branch here either
-        ●   aborts with 404
-        ●   redirects
-        ● OR renders a template 
+        →   aborts with 404
+        →   redirects
+        → OR renders a template 
     to try and avoid Flask view return error 
 """ 
