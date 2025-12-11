@@ -281,11 +281,13 @@ def edit_course(plan_id: int, course_id: int):
     # GET: show the edit form
     return render_template("edit_course.html", plan=plan, course=course)
 
-
-@main_bp.route("/plan/<int:plan_id>/courses/<int:course_id>/delete", methods=["POST"])
+@main_bp.route(
+    "/plans/<int:plan_id>/courses/<int:course_id>/delete",
+    methods=["POST"],
+)
 @login_required
 def delete_course(plan_id: int, course_id: int):
-    # makeing sure plan belomgs to current use
+    # 1) Make sure the plan belongs to the current user
     plan = DegreePlan.query.filter_by(
         id=plan_id,
         user_id=current_user.id,
@@ -293,7 +295,7 @@ def delete_course(plan_id: int, course_id: int):
     if plan is None:
         abort(404)
 
-    #find the course inside this plan
+    # 2) Find the course inside this plan
     course = Course.query.filter_by(
         id=course_id,
         degree_plan_id=plan.id,
@@ -301,12 +303,24 @@ def delete_course(plan_id: int, course_id: int):
     if course is None:
         abort(404)
 
-    # Delete and Save
-    # db.session.delete(course)
+    # 3) Delete all related offerings + prereqs pointing to this course
+    CourseOffering.query.filter_by(course_id=course.id).delete()
+    Prerequisite.query.filter_by(
+        degree_plan_id=plan.id,
+        course_id=course.id,
+    ).delete()
+    Prerequisite.query.filter_by(
+        degree_plan_id=plan.id,
+        prereq_course_id=course.id,
+    ).delete()
+
+    # 4) Delete the course itself
+    db.session.delete(course)
     db.session.commit()
 
     flash("Course deleted.", "success")
     return redirect(url_for("main.view_plan", plan_id=plan.id))
+
 
 @main_bp.route(
     "/plans/<int:plan_id>/courses/<int:course_id>/offerings",
