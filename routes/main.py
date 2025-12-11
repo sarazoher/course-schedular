@@ -399,10 +399,7 @@ def delete_course(plan_id: int, course_id: int):
     return redirect(url_for("main.view_plan", plan_id=plan.id))
 
 
-@main_bp.route(
-    "/plans/<int:plan_id>/courses/<int:course_id>/offerings",
-    methods=["GET", "POST"],
-)
+@main_bp.route("/plans/<int:plan_id>/courses/<int:course_id>/offerings", methods=["GET", "POST"])
 @login_required
 def edit_offerings(plan_id: int, course_id: int):
     # 1) Make sure plan belongs to current user
@@ -515,6 +512,11 @@ def course_detail(plan_id: int, course_id: int):
         prereq_course_id=course.id,
     ).all()
 
+    all_courses = Course.query.filter_by(
+        degree_plan_id=plan.id
+    ).order_by(Course.code).all()
+    available_prereq_courses = [c for c in all_courses if c.id != course.id]
+
     return render_template(
         "course_detail.html",
         plan=plan,
@@ -523,4 +525,106 @@ def course_detail(plan_id: int, course_id: int):
         selected_semesters=selected_semesters,
         incoming_prereqs=incoming_prereqs,
         outgoing_prereqs=outgoing_prereqs,
+        available_prereq_courses=available_prereq_courses,
     )
+
+@main_bp.route("/plans/<int:plan_id>/course/<int:course_id>/prereqs/add", methods=["POST"])
+@login_required
+def add_prereq(plan_id: int, course_id: int):
+    # Make sure the plan belongs to the current user
+    plan = DegreePlan.query.filter_by(
+        id=plan_id,
+        user_id=current_user.id,
+    ).first()
+    if plan is None:
+        abort(404)
+
+    # Make sure the "target" course belongs to this plan
+    course = Course.query.filter_by(
+        id=course_id,
+        degree_plan_id=plan.id,
+    ).first()
+    if course is None:
+        abort(404)
+
+    prereq_id_raw = (request.form.get("prereq_course_id") or "").strip()
+    if not prereq_id_raw:
+        flash("Please select a prerequisite course.", "error")
+        return redirect(url_for("main.course_detail", plan_id=plan.id, course_id=course.id))
+
+    try:
+        prereq_course_id = int(prereq_id_raw)
+    except ValueError:
+        flash("Invalid prerequisite course.", "error")
+        return redirect(url_for("main.course_detail", plan_id=plan.id, course_id=course.id))
+
+    # Can't be its own prerequisite!
+    if prereq_course_id == course.id:
+        flash("A course cannot be a prerequisite of itself.", "error")
+        return redirect(url_for("main.course_detail", plan_id=plan.id, course_id=course.id))
+
+    # Ensure prereq course exists in the same plan
+    prereq_course = Course.query.filter_by(
+        id=prereq_course_id,
+        degree_plan_id=plan.id,
+    ).first()
+    if prereq_course is None:
+        flash("Selected prerequisite course is not in this plan.", "error")
+        return redirect(url_for("main.course_detail", plan_id=plan.id, course_id=course.id))
+
+    # Avoid duplicate edges
+    existing = Prerequisite.query.filter_by(
+        degree_plan_id=plan.id,
+        course_id=course.id,
+        prereq_course_id=prereq_course.id,
+    ).first()
+    if existing:
+        flash("This prerequisite already exists.", "error")
+        return redirect(url_for("main.course_detail", plan_id=plan.id, course_id=course.id))
+
+    # Create the new prereq edge
+    edge = Prerequisite(
+        degree_plan_id=plan.id,
+        course_id=course.id,
+        prereq_course_id=prereq_course.id,
+    )
+    db.session.add(edge)
+    db.session.commit()
+
+    flash("Prerequisite added.", "success")
+    return redirect(url_for("main.course_detail", plan_id=plan.id, course_id=course.id))
+
+
+@main_bp.route("/plans/<int:plan_id>/course/<int:course_id>/prereqs/<int:prereq_id>/delete", methods=["POST"])
+@login_required
+def delete_prereq(plan_id: int, course_id: int, prereq_id: int):
+    # Ensure plan belongs to current user
+    plan = DegreePlan.query.filter_by(
+        id=plan_id,
+        user_id=current_user.id,
+    ).first()
+    if plan is None:
+        abort(404)
+
+    # Ensure course belongs to this plan
+    course = Course.query.filter_by(
+        id=course_id,
+        degree_plan_id=plan.id,
+    ).first()
+    if course is None:
+        abort(404)
+
+    # Find the prereq edge and ensure it belongs to this plan+course
+    edge = Prerequisite.query.filter_by(
+        id=prereq_id,
+        degree_plan_id=plan.id,
+        course_id=course.id,
+    ).first()
+    if edge is None:
+        abort(404)
+
+    db.session.delete(edge)
+    db.session.commit()
+
+    flash("Prerequisite removed.", "success")
+    return redirect(url_for("main.course_detail", plan_id=plan.id, course_id=course.id))
