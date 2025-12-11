@@ -167,44 +167,81 @@
       </form>
     </div>
 
-    <!-- Prereqs tab (read-only for now) -->
+    <!-- Prereqs tab -->
     <div class="tab-pane fade"
          id="prereqs"
          role="tabpanel"
          aria-labelledby="prereq-tab">
       <div class="mt-3 row">
+        <!-- Incoming prereqs (what this course requires) -->
         <div class="col-md-6 mb-3">
           <h5>Requires these courses</h5>
           <ul class="list-unstyled">
             {% for edge in incoming_prereqs %}
-            <li>
-              {{ edge.prereq_course.code }} – {{ edge.prereq_course.name }}
-            </li>
+              <li class="d-flex justify-content-between align-items-center mb-1">
+                <span>
+                  {{ edge.prereq_course.code }} – {{ edge.prereq_course.name }}
+                </span>
+                <form method="POST"
+                      action="{{ url_for('main.delete_prereq',
+                                         plan_id=plan.id,
+                                         course_id=course.id,
+                                         prereq_id=edge.id) }}"
+                      onsubmit="return confirm('Remove this prerequisite?');">
+                  <button type="submit"
+                          class="btn btn-sm btn-outline-danger">
+                    Remove
+                  </button>
+                </form>
+              </li>
             {% else %}
-            <li class="text-muted">
-              No prerequisites yet.
-            </li>
+              <li class="text-muted">
+                No prerequisites yet.
+              </li>
             {% endfor %}
           </ul>
+
+          <hr>
+
+          <h6 class="mt-3">Add a prerequisite</h6>
+          <form method="POST"
+                action="{{ url_for('main.add_prereq',
+                                   plan_id=plan.id,
+                                   course_id=course.id) }}">
+            <div class="mb-2">
+              <select name="prereq_course_id"
+                      class="form-select"
+                      required>
+                <option value="">-- Select course --</option>
+                {% for c in available_prereq_courses %}
+                  <option value="{{ c.id }}">
+                    {{ c.code }} - {{ c.name }}
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+            <button type="submit" class="btn btn-sm btn-primary">
+              Add prerequisite
+            </button>
+          </form>
         </div>
 
+        <!-- Outgoing prereqs (where this course is required) -->
         <div class="col-md-6 mb-3">
           <h5>Is a prerequisite for</h5>
           <ul class="list-unstyled">
             {% for edge in outgoing_prereqs %}
-            <li>
-              {{ edge.course.code }} – {{ edge.course.name }}
-            </li>
+              <li>
+                {{ edge.course.code }} - {{ edge.course.name }}
+              </li>
             {% else %}
-            <li class="text-muted">
-              Not required by any course yet.
-            </li>
+              <li class="text-muted">
+                Not required by any course yet.
+              </li>
             {% endfor %}
           </ul>
         </div>
       </div>
-
-      <!-- Next step: add forms here to add/remove prereqs -->
     </div>
 
   </div>
