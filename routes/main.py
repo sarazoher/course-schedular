@@ -169,6 +169,54 @@ def view_plan(plan_id: int):
         courses = courses,
     )
 
+@main_bp.route("/plans/<int:plan_id>/settings", methods=["GET", "POST"])
+@login_required
+def plan_settings(plan_id: int):
+    # 1) Make sure the plan belongs to the current user
+    plan = DegreePlan.query.filter_by(
+        id=plan_id,
+        user_id=current_user.id,
+    ).first()
+    if plan is None:
+        abort(404)
+
+    # 2) Get or create the constraint row for this plan
+    pc = PlanConstraint.query.filter_by(degree_plan_id=plan.id).first()
+    if pc is None:
+        pc = PlanConstraint(
+            degree_plan_id=plan.id,
+            total_semesters=6,  # default
+        )
+        db.session.add(pc)
+        db.session.commit()
+
+    if request.method == "POST":
+        total_semesters_raw = (request.form.get("total_semesters") or "").strip()
+
+        try:
+            total_semesters_val = int(total_semesters_raw)
+        except ValueError:
+            flash("Total semesters must be a whole number.", "error")
+            return redirect(url_for("main.plan_settings", plan_id=plan.id))
+
+        if total_semesters_val < 1 or total_semesters_val > 20:
+            flash("Total semesters must be between 1 and 20.", "error")
+            return redirect(url_for("main.plan_settings", plan_id=plan.id))
+
+        pc.total_semesters = total_semesters_val
+        db.session.commit()
+
+        flash("Plan settings updated.", "success")
+        return redirect(url_for("main.view_plan", plan_id=plan.id))
+
+    # GET: render the settings page
+    return render_template(
+        "plan_settings.html",
+        plan=plan,
+        constraints=pc,
+    )
+
+
 @main_bp.route("/plans/<int:plan_id>/courses/add", methods=["POST"])
 @login_required
 def add_course(plan_id: int):

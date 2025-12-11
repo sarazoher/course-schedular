@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<a href="{{ url_for('main.view_plan', plan_id=plan.id) }}" class="btn btn-link mb-3">
+  &larr; Back to plan "{{ plan.name }}"
+</a>
+
+<h2 class="mb-3">Plan settings</h2>
+
+<div class="card">
+  <div class="card-body">
+    <form method="POST"
+          action="{{ url_for('main.plan_settings', plan_id=plan.id) }}">
+
+      <div class="mb-3">
+        <label for="total_semesters" class="form-label">
+          Total semesters in this plan
+        </label>
+        <input type="number"
+               class="form-control"
+               id="total_semesters"
+               name="total_semesters"
+               min="1"
+               max="20"
+               value="{{ constraints.total_semesters or 6 }}"
+               required>
+        <div class="form-text">
+          This controls how many semesters appear in offerings and in the solver.
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary">
+        Save settings
+      </button>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
