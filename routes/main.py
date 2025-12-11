@@ -10,10 +10,12 @@ from flask import (
 
 from flask_login import login_required, current_user
 from extensions import db
+
 from models.degree_plan import DegreePlan
 from models.course import Course
 from models.course_offering import CourseOffering
 from models.plan_constraint import PlanConstraint
+from models.prerequisite import Prerequisite
 
 from services.solver import build_inputs_from_plan, build_model
 from pulp import PULP_CBC_CMD, LpStatus
@@ -274,7 +276,7 @@ def edit_course(plan_id: int, course_id: int):
 
         db.session.commit()
         flash("Course updated.", "success")
-        return redirect(url_for("main.view_plan", plan_id=plan.id))
+        return redirect(url_for("main.course_detail", plan_id=plan.id, course_id=course.id))
 
     # GET: show the edit form
     return render_template("edit_course.html", plan=plan, course=course)
@@ -306,11 +308,13 @@ def delete_course(plan_id: int, course_id: int):
     flash("Course deleted.", "success")
     return redirect(url_for("main.view_plan", plan_id=plan.id))
 
-
-@main_bp.route("/plans/<int:plan_id>/courses/<int:course_id>/offerings", methods=["GET", "POST"])
+@main_bp.route(
+    "/plans/<int:plan_id>/courses/<int:course_id>/offerings",
+    methods=["GET", "POST"],
+)
 @login_required
 def edit_offerings(plan_id: int, course_id: int):
-    # 1- Making sure plan belongs to current user
+    # 1) Make sure plan belongs to current user
     plan = DegreePlan.query.filter_by(
         id=plan_id,
         user_id=current_user.id,
@@ -318,7 +322,7 @@ def edit_offerings(plan_id: int, course_id: int):
     if plan is None:
         abort(404)
 
-    # 2- Making sure course belongs to this plan
+    # 2) Make sure course belongs to this plan
     course = Course.query.filter_by(
         id=course_id,
         degree_plan_id=plan.id,
@@ -326,35 +330,39 @@ def edit_offerings(plan_id: int, course_id: int):
     if course is None:
         abort(404)
 
-    # 3- How many semesters should we show
-    pc = PlanConstraint.query.filter_by(degree_plan_id=plan.id).first()
-    total_semesters = pc.total_semesters if pc and pc.total_semesters else 6
-
+    # POST: update offerings based on checkboxes from the tab form
     if request.method == "POST":
-        selected_raw = request.form.getlist("semesters")
-
+        selected_raw = request.form.getlist("semesters")  # list of "1", "2", ...
         try:
-            selected_nums = [int(s) for s in selected_raw]
+            selected_semesters = sorted({int(s) for s in selected_raw})
         except ValueError:
-            flash("Invalid semester selection.", "error")
-            return redirect(url_for("main.edit_offerings", plan_id.id, course_id=course.id))
-        
+            selected_semesters = []
+
         # Clear existing offerings for this course
         CourseOffering.query.filter_by(course_id=course.id).delete()
 
-        # Re-add Offerings only for VALID semester
-        for s in selected_nums:
-            if 1 <= s <= total_semesters:
-                db.session.add(
-                    CourseOffering(
-                        course_id=course.id,
-                        semester_number=s,
-                    )
+        # Insert the new ones
+        for s in selected_semesters:
+            db.session.add(
+                CourseOffering(
+                    course_id=course.id,
+                    semester_number=s,
                 )
+            )
 
         db.session.commit()
-        flash("Offerings Updated.", "success")
-        return redirect(url_for("main.view_plan", plan_id=plan.id))
+        flash("Offerings updated.", "success")
+
+        # Back to the unified course page with tabs
+        return redirect(
+            url_for("main.course_detail", plan_id=plan.id, course_id=course.id)
+        )
+
+    # GET: we don't show a separate offerings page anymore,
+    # just redirect to the course detail (Offerings tab is there)
+    return redirect(
+        url_for("main.course_detail", plan_id=plan.id, course_id=course.id)
+    )
     
     # GET: collect currently selected semesters
     # assumes a relationship Course.offerings exists
@@ -374,3 +382,54 @@ In function above, every branch here either
         → OR renders a template 
     to try and avoid Flask view return error 
 """ 
+@main_bp.route("/plans/<int:plan_id>/course/<int:course_id>")
+@login_required
+def course_detail(plan_id: int, course_id: int):
+    # 1) Make sure the plan belongs to this user
+    plan = DegreePlan.query.filter_by(
+        id=plan_id,
+        user_id=current_user.id,
+    ).first()
+    if plan is None:
+        abort(404)
+
+    # 2) Make sure the course belongs to this plan
+    course = Course.query.filter_by(
+        id=course_id,
+        degree_plan_id=plan.id,
+    ).first()
+    if course is None:
+        abort(404)
+
+    # 3) How many semesters? (from PlanConstraint, fallback to 6)
+    pc = PlanConstraint.query.filter_by(degree_plan_id=plan.id).first()
+    if pc and pc.total_semesters:
+        total_semesters = pc.total_semesters
+    else:
+        total_semesters = 6
+
+    # 4) Existing offerings for this course → used to pre-check boxes
+    selected_semesters = {o.semester_number for o in course.offerings}
+
+    # 5) Prerequisites for this course
+    # incoming: "requires these courses"
+    incoming_prereqs = Prerequisite.query.filter_by(
+        degree_plan_id=plan.id,
+        course_id=course.id,
+    ).all()
+
+    # outgoing: "is a prerequisite for these courses"
+    outgoing_prereqs = Prerequisite.query.filter_by(
+        degree_plan_id=plan.id,
+        prereq_course_id=course.id,
+    ).all()
+
+    return render_template(
+        "course_detail.html",
+        plan=plan,
+        course=course,
+        total_semesters=total_semesters,
+        selected_semesters=selected_semesters,
+        incoming_prereqs=incoming_prereqs,
+        outgoing_prereqs=outgoing_prereqs,
+    )
