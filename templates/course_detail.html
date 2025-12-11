@@ -6,7 +6,7 @@
   <!-- Header: course title + back to plan + delete -->
   <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
-      <h2>{{ course.code }} – {{ course.name }}</h2>
+      <h2>{{ course.code }} - {{ course.name }}</h2>
       <div class="text-muted">
         Plan:
         <a href="{{ url_for('main.view_plan', plan_id=plan.id) }}">

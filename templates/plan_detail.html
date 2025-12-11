@@ -11,12 +11,19 @@
   </div>
 
   <div class="text-end">
-    <a href="{{ url_for('main.dashboard') }}" class="btn btn-outline-secondary me-2">
+    <a href="{{ url_for('main.dashboard') }}" 
+       class="btn btn-outline-secondary me-2">
       &larr; Back to dashboard
     </a>
 
-    {# adjust route name if needed #}
-    <a href="{{ url_for('main.solve_plan', plan_id=plan.id) }}" class="btn btn-primary">
+
+    <a href="{{ url_for('main.plan_settings', plan_id=plan.id) }}"
+       class="btn btn-outline-secondary me-2">
+      Plan settings
+    </a>
+
+    <a href="{{ url_for('main.solve_plan', plan_id=plan.id) }}"
+       class="btn btn-primary">
       Solve plan
     </a>
   </div>
