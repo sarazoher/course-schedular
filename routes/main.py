@@ -42,17 +42,26 @@ def dashboard():
 @login_required
 def create_plan():
     if request.method == "POST":
-        name = request.form.get("name")
+        name = (request.form.get("name") or "").strip()
 
         if not name:
-            flash("Plan name is required.")
+            flash("Plan name is required.", "error")
+            return redirect(url_for("main.create_plan"))
+        
+        # check if this user already has a plan with the same name
+        existing = DegreePlan.query.filter_by(
+            user_id=current_user.id,
+            name=name,
+        ).first()
+        if existing:
+            flash("Plan of this name already exists.", "error")
             return redirect(url_for("main.create_plan"))
 
         plan = DegreePlan(user_id=current_user.id, name=name)
         db.session.add(plan)
         db.session.commit()
 
-        flash("Degree plan created.")
+        flash("Degree plan created.", "success")
         return redirect(url_for("main.dashboard"))
 
     return render_template("create_plan.html")
@@ -163,47 +172,67 @@ def view_plan(plan_id: int):
 @main_bp.route("/plans/<int:plan_id>/courses/add", methods=["POST"])
 @login_required
 def add_course(plan_id: int):
-
+    # 1) Ensure plan belongs to current user
     plan = DegreePlan.query.filter_by(
-        id = plan_id,
-        user_id= current_user.id,
+        id=plan_id,
+        user_id=current_user.id,
     ).first()
     if plan is None:
         abort(404)
 
-    code = request.form.get("code", "").strip()
-    name = request.form.get("name", "").strip()
-    credits_raw = request.form.get("credits", "").strip()
-    difficulty_raw = request.form.get("difficulty", "").strip()
+    # 2) Read and normalize form fields
+    code = (request.form.get("code") or "").strip()
+    name = (request.form.get("name") or "").strip()
+    credits_raw = (request.form.get("credits") or "").strip()
+    difficulty_raw = (request.form.get("difficulty") or "").strip()
 
     if not code or not name:
-        flash("course code and name are required", "errorr")
+        flash("Course code and name are required.", "error")
         return redirect(url_for("main.view_plan", plan_id=plan.id))
 
+    # 3) Validate credits
+    # must be an int or .5 increments
     try:
-        credits_val = int(credits_raw) if credits_raw else 0
+        credits_val = float(credits_raw)
     except ValueError:
-        flash("Credits must be a number", "error")
-        return redirect(url_for("main.view_plan", plan_id=plan.id))
-
-    #try:
-    #    difficulty_val = int(difficulty_raw) if difficulty_raw else None
-    #except ValueError:
-    #    flash("Difficulty must be a number.", "error")
-    #    return redirect(url_for("main.view_plan", plan_id=plan.id))
-    difficulty_val = None # temporarily ignoring difficulty 
-
-    #make sure course codes are unique within a specific plan (no duplicates)
-    exists = Course.query.filter_by(
-        degree_plan_id= plan.id,
-        code=code,
-    ).first()
-    if exists:
-        flash("A course with that code already exists in this plan.", "error")
+        flash("Credits must be a number.", "error")
         return redirect(url_for("main.view_plan", plan_id=plan.id))
     
+    # no negative value, and must be in steps of 0.5 
+    # we allow zero, for non-credit requirement courses 
+    if credits_val < 0 or (credits_val * 2).is_integer:
+        flash("Credits must be an integer OR end with .5", "error")
+        return redirect(url_for("main.view_plan", plan_id=plan.id))
+
+    # 4) Validate difficulty (optional)
+    difficulty_val = None
+    if difficulty_raw:
+        try:
+            difficulty_val = int(difficulty_raw)
+        except ValueError:
+            flash("Difficulty must be a number.", "error")
+            return redirect(url_for("main.view_plan", plan_id=plan.id))
+
+    # 5) Duplicate checks inside this plan
+    existing_code = Course.query.filter_by(
+        degree_plan_id=plan.id,
+        code=code,
+    ).first()
+    if existing_code:
+        flash("A course with that code already exists in this plan.", "error")
+        return redirect(url_for("main.view_plan", plan_id=plan.id))
+
+    existing_name = Course.query.filter_by(
+        degree_plan_id=plan.id,
+        name=name,
+    ).first()
+    if existing_name:
+        flash("A course with that name already exists in this plan.", "error")
+        return redirect(url_for("main.view_plan", plan_id=plan.id))
+
+    # 6) Create and save the course
     course = Course(
-        degree_plan_id = plan.id,
+        degree_plan_id=plan.id,
         code=code,
         name=name,
         credits=credits_val,
