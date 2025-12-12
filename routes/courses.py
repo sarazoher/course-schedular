@@ -1,222 +1,13 @@
-"""from flask import (
-    Blueprint,
-    render_template,
-    redirect,
-    url_for,
-    request,
-    flash,
-    abort,
-)
-
+from flask import render_template, redirect, url_for, request, abort, flash
 from flask_login import login_required, current_user
-from extensions import db
 
+from . import main_bp
 from models.degree_plan import DegreePlan
 from models.course import Course
 from models.course_offering import CourseOffering
-from models.plan_constraint import PlanConstraint
 from models.prerequisite import Prerequisite
-
-from services.solver import build_inputs_from_plan, build_model
-from pulp import PULP_CBC_CMD, LpStatus
-
-
-main_bp = Blueprint("main", __name__)
-
-"""
-"""
-@main_bp.route("/")
-def home():
-    # uses templates/home.html
-    return render_template("home.html")
-
-
-@main_bp.route("/dashboard")
-@login_required
-def dashboard():
-    # Fetch plans for the logged-in user
-    degree_plans = DegreePlan.query.filter_by(user_id=current_user.id).all()
-    return render_template("dashboard.html", degree_plans=degree_plans)
-
-
-@main_bp.route("/plans/new", methods=["GET", "POST"])
-@login_required
-def create_plan():
-    if request.method == "POST":
-        name = (request.form.get("name") or "").strip()
-
-        if not name:
-            flash("Plan name is required.", "error")
-            return redirect(url_for("main.create_plan"))
-        
-        # check if this user already has a plan with the same name
-        existing = DegreePlan.query.filter_by(
-            user_id=current_user.id,
-            name=name,
-        ).first()
-        if existing:
-            flash("Plan of this name already exists.", "error")
-            return redirect(url_for("main.create_plan"))
-
-        plan = DegreePlan(user_id=current_user.id, name=name)
-        db.session.add(plan)
-        db.session.commit()
-
-        flash("Degree plan created.", "success")
-        return redirect(url_for("main.dashboard"))
-
-    return render_template("create_plan.html")
-"""
-"""
-@main_bp.route("/plans/<int:plan_id>/solve")
-@login_required
-def solve_plan(plan_id: int):
-"""
- #   User-facing route:
- #   - checks the plan belongs to the current user
- #   - builds solver inputs from the DB
- #   - runs the MILP solver
- #   - renders a semester-by-semester schedule
-"""
-    # ensure the plan exists and belongs to the current user
-    plan = DegreePlan.query.filter_by(
-        id=plan_id,
-        user_id=current_user.id,
-    ).first()
-    if plan is None:
-        abort(404)
-
-    # Build inputs from DB
-    try:
-        inputs = build_inputs_from_plan(plan.id)
-    except ValueError as e:
-        # This is where "No courses defined for plan_id=..." will land
-        flash(str(e), "error")
-        return redirect(url_for("main.dashboard"))
-
-    # Build and solve the model
-    model, x = build_model(
-        inputs["courses"],
-        inputs["prereqs"],
-        inputs["allowed_semesters"],
-        inputs["credits"],
-        inputs["max_credits_per_semester"],
-        use_credit_limits=True,
-        use_prereqs=True,
-        minimize_last_semester=True,
-    )
-
-    model.solve(PULP_CBC_CMD(msg=0))
-    status = LpStatus[model.status]
-
-    # Map course_code → Course row (for names, difficulty, etc.)
-    course_rows = Course.query.filter_by(degree_plan_id=plan.id).all()
-    course_by_code = {c.code: c for c in course_rows}
-
-    # Extract chosen semester per course
-    assignments = []
-    for c in inputs["courses"]:
-        chosen_semester = None
-        for s in inputs["allowed_semesters"][c]:
-            var = x[c][s]
-            if var.varValue is not None and var.varValue > 0.5:
-                chosen_semester = s
-                break
-
-        course_obj = course_by_code.get(c)
-        assignments.append(
-            {
-                "code": c,
-                "name": course_obj.name if course_obj else c,
-                "credits": inputs["credits"][c],
-                "difficulty": getattr(course_obj, "difficulty", None),
-                "semester": chosen_semester,
-            }
-        )
-
-    # Group by semester for easier templating
-    semesters = sorted(inputs["max_credits_per_semester"].keys())
-    courses_by_semester = {s: [] for s in semesters}
-    for a in assignments:
-        if a["semester"] is not None:
-            courses_by_semester[a["semester"]].append(a)
-
-    return render_template(
-        "plan_schedule.html",
-        plan=plan,
-        status=status,
-        semesters=semesters,
-        courses_by_semester=courses_by_semester,
-    )
-
-
-@main_bp.route("/plans/<int:plan_id>")
-@login_required
-def view_plan(plan_id: int):
-   # show a single plan, with its courses listed and a simple 'add course' form
-
-    
-    plan = DegreePlan.query.filter_by(
-        id = plan_id,
-        user_id = current_user.id,
-    ).first()
-    if plan is None:
-        abort(404)
-    courses = Course.query.filter_by(degree_plan_id=plan.id).order_by(Course.id).all()
-
-    return render_template(
-        "plan_detail.html", 
-        plan = plan,
-        courses = courses,
-    )
-
-@main_bp.route("/plans/<int:plan_id>/settings", methods=["GET", "POST"])
-@login_required
-def plan_settings(plan_id: int):
-    # 1) Make sure the plan belongs to the current user
-    plan = DegreePlan.query.filter_by(
-        id=plan_id,
-        user_id=current_user.id,
-    ).first()
-    if plan is None:
-        abort(404)
-
-    # 2) Get or create the constraint row for this plan
-    pc = PlanConstraint.query.filter_by(degree_plan_id=plan.id).first()
-    if pc is None:
-        pc = PlanConstraint(
-            degree_plan_id=plan.id,
-            total_semesters=6,  # default
-        )
-        db.session.add(pc)
-        db.session.commit()
-
-    if request.method == "POST":
-        total_semesters_raw = (request.form.get("total_semesters") or "").strip()
-
-        try:
-            total_semesters_val = int(total_semesters_raw)
-        except ValueError:
-            flash("Total semesters must be a whole number.", "error")
-            return redirect(url_for("main.plan_settings", plan_id=plan.id))
-
-        if total_semesters_val < 1 or total_semesters_val > 20:
-            flash("Total semesters must be between 1 and 20.", "error")
-            return redirect(url_for("main.plan_settings", plan_id=plan.id))
-
-        pc.total_semesters = total_semesters_val
-        db.session.commit()
-
-        flash("Plan settings updated.", "success")
-        return redirect(url_for("main.view_plan", plan_id=plan.id))
-
-    # GET: render the settings page
-    return render_template(
-        "plan_settings.html",
-        plan=plan,
-        constraints=pc,
-    )
-
+from models.plan_constraint import PlanConstraint
+from extensions import db
 
 @main_bp.route("/plans/<int:plan_id>/courses/add", methods=["POST"])
 @login_required
@@ -229,40 +20,17 @@ def add_course(plan_id: int):
     if plan is None:
         abort(404)
 
-    # 2) Read and normalize form fields
+    # 2) Normalize inputs
     code = (request.form.get("code") or "").strip()
     name = (request.form.get("name") or "").strip()
     credits_raw = (request.form.get("credits") or "").strip()
     difficulty_raw = (request.form.get("difficulty") or "").strip()
 
     if not code or not name:
-        flash("Course code and name are required.", "error")
+        flash("Course and name are required.", "error")
         return redirect(url_for("main.view_plan", plan_id=plan.id))
 
-    # 3) Validate credits
-    # must be an int or .5 increments
-    try:
-        credits_val = float(credits_raw)
-    except ValueError:
-        flash("Credits must be a number.", "error")
-        return redirect(url_for("main.view_plan", plan_id=plan.id))
-    
-    # no negative value, and must be in steps of 0.5 
-    # we allow zero, for non-credit requirement courses 
-    if credits_val < 0 or (credits_val * 2).is_integer:
-        flash("Credits must be an integer OR end with .5", "error")
-        return redirect(url_for("main.view_plan", plan_id=plan.id))
-
-    # 4) Validate difficulty (optional)
-    difficulty_val = None
-    if difficulty_raw:
-        try:
-            difficulty_val = int(difficulty_raw)
-        except ValueError:
-            flash("Difficulty must be a number.", "error")
-            return redirect(url_for("main.view_plan", plan_id=plan.id))
-
-    # 5) Duplicate checks inside this plan
+    # 3) Duplicate checks (inside this plan)
     existing_code = Course.query.filter_by(
         degree_plan_id=plan.id,
         code=code,
@@ -279,13 +47,52 @@ def add_course(plan_id: int):
         flash("A course with that name already exists in this plan.", "error")
         return redirect(url_for("main.view_plan", plan_id=plan.id))
 
+    # 4) Credit validation
+    if not credits_raw:
+        flash("Credits are required.", "error")
+        return redirect(url_for("main.view_plan", plan_id=plan.id))
+
+    try:
+        credits_val = float(credits_raw)
+    except ValueError:
+        flash("Credits must be a number.", "error")
+        return redirect(url_for("main.view_plan", plan_id=plan.id))
+
+    if credits_val <= 0:
+        flash("Credits must be positive.", "error")
+        return redirect(url_for("main.view_plan", plan_id=plan.id))
+
+    # allow integers or .5 values: 1, 1.5, 2, 2.5, ...
+    if not (credits_val * 2).is_integer():
+        flash("Credits must be an integer OR end with .5", "error")
+        return redirect(url_for("main.view_plan", plan_id=plan.id))
+
+    credits = credits_val   # this is what we store/use below
+
+
+    # 5) Difficulty (optional)
+    difficulty = None
+    if difficulty_raw:
+        try:
+            diff_val = int(difficulty_raw)
+        except ValueError:
+            flash("Difficulty must be a number between 1 and 5.", "error")
+            return redirect(url_for("main.view_plan", plan_id=plan.id))
+
+        if diff_val < 1 or diff_val > 5:
+            flash("Difficulty must be between 1 and 5.", "error")
+            return redirect(url_for("main.view_plan", plan_id=plan.id))
+
+        difficulty = diff_val
+
+    
     # 6) Create and save the course
     course = Course(
         degree_plan_id=plan.id,
         code=code,
         name=name,
-        credits=credits_val,
-        difficulty=difficulty_val,
+        credits=credits,
+        difficulty=difficulty,
     )
     db.session.add(course)
     db.session.commit()
@@ -314,28 +121,45 @@ def edit_course(plan_id: int, course_id: int):
         abort(404)
 
     if request.method == "POST":
-        code = request.form.get("code", "").strip()
-        name = request.form.get("name", "").strip()
-        credits_raw = request.form.get("credits", "").strip()
-        difficulty_raw = request.form.get("difficulty", "").strip()
+        code = (request.form.get("code") or "").strip()
+        name = (request.form.get("name") or "").strip()
+        credits_raw = (request.form.get("credits") or "").strip()
+        difficulty_raw = (request.form.get("difficulty") or "").strip()
 
         if not code or not name:
             flash("Course code and name are required.", "error")
             return redirect(url_for("main.edit_course", plan_id=plan.id, course_id=course.id))
 
-        # parse credits
+        # Credits validation
+        if not credits_raw:
+            flash("Credits are required.", "error")
+            return render_template(url_for("main.edit_course", plan_id=plan.id, course_id=course.id))
+        
         try:
-            credits_val = int(credits_raw) if credits_raw else 0
+            credits_val = float(credits_raw)
         except ValueError:
             flash("Credits must be a number.", "error")
             return redirect(url_for("main.edit_course", plan_id=plan.id, course_id=course.id))
 
-        # parse difficulty (optional)
-        try:
-            difficulty_val = int(difficulty_raw) if difficulty_raw else None
-        except ValueError:
-            flash("Difficulty must be a number.", "error")
+        if credits_val <= 0:
+            flash("Credit must be positive.", "error")
             return redirect(url_for("main.edit_course", plan_id=plan.id, course_id=course.id))
+        
+        # 5) Difficulty (optional)
+        difficulty_val = None
+        if difficulty_raw:
+            try:
+                diff = int(difficulty_raw)
+            except ValueError:
+                flash("Difficulty must be a number between 1 and 5.", "error")
+                return redirect(url_for("main.edit_course", plan_id=plan.id, course_id=course.id))
+
+            if diff < 1 or diff > 5:
+                flash("Difficulty must be between 1 and 5.", "error")
+                return redirect(url_for("main.edit_course", plan_id=plan.id, course_id=course.id))
+
+            difficulty_val = diff
+
 
         # ensure codes are unique within this plan (excluding this course)
         existing = Course.query.filter_by(
@@ -465,11 +289,11 @@ def edit_offerings(plan_id: int, course_id: int):
         selected_semesters=existing_semesters,
     )
 """ 
-#In function above, every branch here either
- #       →   aborts with 404
- #       →   redirects
- #       → OR renders a template 
- #   to try and avoid Flask view return error 
+In function above, every branch here either
+        →   aborts with 404
+        →   redirects
+        → OR renders a template 
+    to try and avoid Flask view return error 
 """ 
 @main_bp.route("/plans/<int:plan_id>/course/<int:course_id>")
 @login_required
@@ -629,4 +453,3 @@ def delete_prereq(plan_id: int, course_id: int, prereq_id: int):
 
     flash("Prerequisite removed.", "success")
     return redirect(url_for("main.course_detail", plan_id=plan.id, course_id=course.id))
-"""

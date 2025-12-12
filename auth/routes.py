@@ -2,7 +2,6 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_user, logout_user, login_required
 from extensions import db
 from models.user import User
-from routes.debug import debug_bp
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
 

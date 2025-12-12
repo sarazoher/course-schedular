@@ -8,8 +8,8 @@ class DegreePlan(db.Model):
     name = db.Column(db.String(120), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    # Backreference for doing current_user.degree_plans
-    user = db.relationship("User", backref="degree_plan", lazy=True) 
+    # User relationship (many plans per user)
+    user = db.relationship("User", backref="degree_plans", lazy=True) 
 
     def __repr__(self):
         return f"<DgreePlan {self.name}>"
