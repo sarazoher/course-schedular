@@ -8,39 +8,63 @@
     <span class="badge bg-secondary">{{ status }}</span>
   </p>
 
-  <a href="{{ url_for('main.dashboard') }}" class="btn btn-link mb-3">
-    &larr; Back to dashboard
-  </a>
-
-  <div class="row">
-    {% for sem in semesters %}
-      <div class="col-md-4 mb-3">
-        <div class="card h-100">
-          <div class="card-header">
-            Semester {{ sem }}
-          </div>
-          <ul class="list-group list-group-flush">
-            {% if courses_by_semester[sem] %}
-              {% for course in courses_by_semester[sem] %}
-                <li class="list-group-item">
-                  <strong>{{ course.code }}</strong> — {{ course.name }}<br>
-                  <small>
-                    Credits: {{ course.credits }}
-                    {% if course.difficulty is not none %}
-                      • Difficulty: {{ course.difficulty }}
-                    {% endif %}
-                  </small>
-                </li>
-              {% endfor %}
-            {% else %}
-              <li class="list-group-item text-muted">
-                No courses scheduled in this semester.
-              </li>
-            {% endif %}
-          </ul>
-        </div>
-      </div>
-    {% endfor %}
+  <div class="mb-3">
+    <a href="{{ url_for('main.view_plan', plan_id=plan.id) }}" class="btn btn-link">
+      &larr; Back to plan
+    </a>
+    <a href="{{ url_for('main.plan_settings', plan_id=plan.id) }}" class="btn btn-outline-secondary btn-sm ms-2">
+      Plan settings
+    </a>
+    <a href="{{ url_for('main.dashboard') }}" class="btn btn-outline-secondary btn-sm ms-2">
+      Dashboard
+    </a>
   </div>
-</div>
+
+  {% if status != 'Optimal' %}
+    <div class="alert alert-warning">
+      <strong>No valid schedule could be produced.</strong>
+      <div class="mt-2">
+        The solver couldn't find a feasible solution under your current settings.
+      </div>
+      {% if infeasible_hints %}
+        <ul class="mt-2 mb-0">
+          {% for h in infeasible_hints %}
+            <li>{{ h }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+  {% else %}
+
+    <div class="row">
+      {% for sem in semesters %}
+        <div class="col-md-4 mb-3">
+          <div class="card h-100">
+            <div class="card-header">
+              Semester {{ sem }}
+            </div>
+            <ul class="list-group list-group-flush">
+              {% if courses_by_semester[sem] %}
+                {% for course in courses_by_semester[sem] %}
+                  <li class="list-group-item">
+                    <strong>{{ course.code }}</strong> — {{ course.name }}<br>
+                    <small>
+                      Credits: {{ course.credits }}
+                      {% if course.difficulty is not none %}
+                        • Difficulty: {{ course.difficulty }}
+                      {% endif %}
+                    </small>
+                  </li>
+                {% endfor %}
+              {% else %}
+                <li class="list-group-item text-muted">
+                  No courses scheduled in this semester.
+                </li>
+              {% endif %}
+            </ul>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
 {% endblock %}
