@@ -407,6 +407,39 @@ def add_prereq(plan_id: int, course_id: int):
         flash("That prerequisite already exists.", "error")
         return redirect(url_for("main.course_detail", plan_id=plan.id, course_id=course.id))
 
+    # Prevent cycles: if course -> ... -> prereq already exists, adding prereq -> course creates a cycle.
+    edges = Prerequisite.query.filter_by(degree_plan_id=plan.id).all()
+    adj = {}
+    for e in edges:
+        adj.setdefault(e.prereq_course_id, []).append(e.course_id)
+
+    # Add the proposed edge into the adjacency for the purpose of cycle-checking.
+    adj.setdefault(prereq_course.id, []).append(course.id)
+
+    # DFS from the dependent course; if we can reach the proposed prereq, we'd form a cycle.
+    target = prereq_course.id
+    stack = [course.id]
+    visited = set()
+    cycle_found = False
+    while stack:
+        node = stack.pop()
+        if node == target:
+            cycle_found = True
+            break
+        if node in visited:
+            continue
+        visited.add(node)
+        for nxt in adj.get(node, []):
+            if nxt not in visited:
+                stack.append(nxt)
+
+    if cycle_found:
+        flash(
+            "That prerequisite would create a cycle (A requires B requires ... requires A). Remove the conflicting prerequisite first.",
+            "error",
+        )
+        return redirect(url_for("main.course_detail", plan_id=plan.id, course_id=course.id))
+
     edge = Prerequisite(
         degree_plan_id=plan.id,
         course_id=course.id,
