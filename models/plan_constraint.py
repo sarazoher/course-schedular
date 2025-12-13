@@ -21,6 +21,11 @@ class PlanConstraint(db.Model):
 
     total_semesters = db.Column(db.Integer, nullable=True)
 
+    # solver behavior flags (3)
+    enforce_prereqs = db.Column(db.Boolean, nullable=False, default=True)
+    enforce_credit_limits = db.Column(db.Boolean, nullable=False, default=True)
+    minimize_last_semester = db.Column(db.Boolean, nullable=False, default=True)
+    
     degree_plan = db.relationship(
         "DegreePlan",
         backref=db.backref("constraints", uselist=False),

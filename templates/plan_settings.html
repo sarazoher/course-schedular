@@ -10,26 +10,89 @@
 
 <div class="card">
   <div class="card-body">
-    <form method="POST"
-          action="{{ url_for('main.plan_settings', plan_id=plan.id) }}">
+    <form method="POST" action="{{ url_for('main.plan_settings', plan_id=plan.id) }}">
 
+      <!-- Total semesters -->
       <div class="mb-3">
-        <label for="total_semesters" class="form-label">
-          Total semesters in this plan
-        </label>
-        <input type="number"
-               class="form-control"
-               id="total_semesters"
-               name="total_semesters"
-               min="1"
-               max="20"
-               value="{{ constraints.total_semesters or 6 }}"
-               required>
+        <label for="total_semesters" class="form-label"> Total semesters </label>
+        <input 
+          type="number"
+          class="form-control"
+          id="total_semesters"
+          name="total_semesters"
+          min="1"
+          max="20"
+          value="{{ constraints.total_semesters or 6 }}"
+          required
+        >
         <div class="form-text">
-          This controls how many semesters appear in offerings and in the solver.
+          Controls how many semesters exist in offerings and in the solver.
         </div>
       </div>
 
+      <!-- Max credits per semester -->
+      <div class="mb-3">
+        <label class="form-label" for="max_credits_per_semester">Max credits per semester</label>
+        <input
+          type="number"
+          class="form-control"
+          id="max_credits_per_semester"
+          name="max_credits_per_semester"
+          min="1"
+          max="60"
+          value="{{ constraints.max_credits_per_semester if constraints.max_credits_per_semester is not none else '' }}"
+          placeholder="Leave blank for no limit"
+        >
+        <div class="form-text">
+          If left blank, the solver will not enforce a credit cap per semester.
+
+        </div>
+      </div>
+
+      <hr class="my-4">
+
+      <!-- Solver flags -->
+      <h5 class="mb-3">Solver settings</h5>
+
+      <div class="form-check mb-2">
+        <input
+          class="form-check-input"
+          type="checkbox"
+          id="enforce_prereqs"
+          name="enforce_prereqs"
+          {% if constraints.enforce_prereqs %}checked{% endif %}
+        >
+        <label class="form-check-label" for="enforce_prereqs">
+          Enforce prerequisites
+        </label>
+      </div>
+
+      <div class="form-check mb-2">
+        <input
+          class="form-check-input"
+          type="checkbox"
+          id="enforce_credit_limits"
+          name="enforce_credit_limits"
+          {% if constraints.enforce_credit_limits %}checked{% endif %}
+        >
+        <label class="form-check-label" for="enforce_credit_limits">
+          Enforce credit limits
+        </label>
+      </div>
+
+      <div class="form-check mb-3">
+        <input
+          class="form-check-input"
+          type="checkbox"
+          id="minimize_last_semester"
+          name="minimize_last_semester"
+          {% if constraints.minimize_last_semester %}checked{% endif %}
+        >
+        <label class="form-check-label" for="minimize_last_semester">
+          Minimize last semester (finish earlier when possible)
+        </label>
+      </div>
+            
       <button type="submit" class="btn btn-primary">
         Save settings
       </button>
