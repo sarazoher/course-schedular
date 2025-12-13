@@ -90,13 +90,17 @@ def plan_settings(plan_id: int):
         pc = PlanConstraint(
             degree_plan_id=plan.id,
             total_semesters=6,  # default
+            max_credits_per_semester=None, 
+            enforce_prereqs=True,
+            enforce_credit_limits=True,
+            minimize_last_semester=True,
         )
         db.session.add(pc)
         db.session.commit()
 
     if request.method == "POST":
+        # --- total semesters ---
         total_semesters_raw = (request.form.get("total_semesters") or "").strip()
-
         try:
             total_semesters_val = int(total_semesters_raw)
         except ValueError:
@@ -106,8 +110,35 @@ def plan_settings(plan_id: int):
         if total_semesters_val < 1 or total_semesters_val > 20:
             flash("Total semesters must be between 1 and 20.", "error")
             return redirect(url_for("main.plan_settings", plan_id=plan.id))
+        
 
+        # ---- max credits per semester (blank means no limit) ----
+        max_credits_raw = (request.form.get("max_credits_per_semester") or "").strip()
+        if max_credits_raw == "":
+            max_credits_val = None
+        else:
+            try:
+                max_credits_val = int(max_credits_raw)
+            except ValueError:
+                flash("Max credits per semester must be a whole number (or left blank).", "error")
+                return redirect(url_for("main.plan_settings", plan_id=plan.id))
+
+            if max_credits_val < 1 or max_credits_val > 60:
+                flash("Max credits per semester must be between 1 and 60.", "error")
+                return redirect(url_for("main.plan_settings", plan_id=plan.id))
+
+        # ---- solver flags ----
+        enforce_prereqs_val = request.form.get("enforce_prereqs") == "on"
+        enforce_credit_limits_val = request.form.get("enforce_credit_limits") == "on"
+        minimize_last_semester_val = request.form.get("minimize_last_semester") == "on"
+
+        # persist
         pc.total_semesters = total_semesters_val
+        pc.max_credits_per_semester = max_credits_val
+        pc.enforce_prereqs = enforce_prereqs_val
+        pc.enforce_credit_limits = enforce_credit_limits_val
+        pc.minimize_last_semester = minimize_last_semester_val
+
         db.session.commit()
 
         flash("Plan settings updated.", "success")
