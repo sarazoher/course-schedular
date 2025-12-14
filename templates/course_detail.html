@@ -203,7 +203,23 @@
 
           <hr>
 
-          <h6 class="mt-3">Add a prerequisite</h6>
+          <h6 class="mt-3 d-flex align-items-center gap-2">
+  <span>Add a prerequisite</span>
+  {% if cycle_risk_ids %}
+    <span
+      class="text-warning"
+      role="button"
+      tabindex="0"
+      data-bs-toggle="popover"
+      data-bs-trigger="hover focus"
+      data-bs-placement="right"
+      data-bs-title="Cycle risk"
+      data-bs-content="Some courses are disabled because choosing them as a prerequisite would create a cycle."
+      aria-label="Cycle risk warning"
+      title="Cycle risk"
+    >⚠</span>
+  {% endif %}
+</h6>
           <form method="POST"
                 action="{{ url_for('main.add_prereq',
                                    plan_id=plan.id,
@@ -214,8 +230,8 @@
                       required>
                 <option value="">-- Select course --</option>
                 {% for c in available_prereq_courses %}
-                  <option value="{{ c.id }}">
-                    {{ c.code }} - {{ c.name }}
+                  <option value="{{ c.id }}"{% if cycle_risk_ids and (c.id in cycle_risk_ids) %} disabled{% endif %}>
+                    {{ c.code }} - {{ c.name }}{% if cycle_risk_ids and (c.id in cycle_risk_ids) %}  ⚠ (would create a cycle){% endif %}
                   </option>
                 {% endfor %}
               </select>
