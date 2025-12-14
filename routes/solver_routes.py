@@ -58,6 +58,53 @@ def solve_plan(plan_id: int):
     model.solve(PULP_CBC_CMD(msg=0))
     status = LpStatus[model.status]
 
+    infeasible_hints = []
+
+    if status != "Optimal":
+        prereqs = inputs.get("prereqs", {})
+        allowed = inputs.get("allowed_semesters", {})
+
+        impossible_edges = []
+        for course, pres in prereqs.items():
+            for pre in pres:
+                pre_max = max(allowed.get(pre, []), default=None)
+                course_min = min(allowed.get(course, []), default=None)
+                if pre_max is not None and course_min is not None and pre_max >= course_min:
+                    impossible_edges.append(f"{pre} → {course}")
+
+        if impossible_edges:
+            infeasible_hints.append(
+                "Some prerequisites are impossible given the current offerings/allowed semesters: "
+                + ", ".join(impossible_edges[:6])
+                + (", ..." if len(impossible_edges) > 6 else "")
+            )
+        graph = {}
+        for course, pres in prereqs.items():
+            for pre in pres:
+                graph.setdefault(pre, []).append(course)
+
+        visited = set()
+        on_stack = set()
+
+        def dfs(node):
+            visited.add(node)
+            on_stack.add(node)
+            for nxt in graph.get(node, []):
+                if nxt not in visited:
+                    if dfs(nxt):
+                        return True
+                elif nxt in on_stack:
+                    return True
+            on_stack.remove(node)
+            return False
+        
+        has_cycle = any(dfs(n) for n in list(graph.keys()) if n not in visited)
+        if has_cycle:
+            infeasible_hints.append(
+                "There in a prerequisite cycle (A requires B requires ... requires A). "
+                "Break the cycle in the prerequisites tab."
+            )
+                
     # Map course_code → Course row
     course_by_code = {c.code: c for c in plan.courses}
 
@@ -95,4 +142,5 @@ def solve_plan(plan_id: int):
         status=status,
         semesters=semesters,
         courses_by_semester=courses_by_semester,
+        infeasible_hints=infeasible_hints,
     )

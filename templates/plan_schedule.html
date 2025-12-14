@@ -2,7 +2,7 @@
 
 {% block content %}
   <h2>Schedule for "{{ plan.name }}"</h2>
- 
+  
   <p>
     Solver status:
     <span class="badge bg-secondary">{{ status }}</span>
@@ -20,22 +20,38 @@
     </a>
   </div>
 
+  {% set hints = infeasible_hints | default([]) %}
+
   {% if status != 'Optimal' %}
-    <div class="alert alert-warning">
-      <strong>No valid schedule could be produced.</strong>
-      <div class="mt-2">
-        The solver couldn't find a feasible solution under your current settings.
+    <div class="alert alert-warning" role="alert">
+      <div class="fw-semibold">No valid schedule could be produced.</div>
+      <div class="mt-1">
+        The solver couldn't find a feasible solution under your current offerings + settings.
       </div>
-      {% if infeasible_hints %}
-        <ul class="mt-2 mb-0">
-          {% for h in infeasible_hints %}
+
+      {% if hints %}
+        <ul class="mt-2 mb-2">
+          {% for h in hints %}
             <li>{{ h }}</li>
           {% endfor %}
         </ul>
       {% endif %}
+
+      <div class="mt-2">
+        <div class="fw-semibold mb-1">What to try next</div>
+        <ul class="mb-0">
+          <li>
+            Review offerings and prerequisites in
+            <a href="{{ url_for('main.view_plan', plan_id=plan.id) }}">the plan page</a>.
+          </li>
+          <li>
+            Adjust total semesters / max credits / solver flags in
+            <a href="{{ url_for('main.plan_settings', plan_id=plan.id) }}">Plan settings</a>.
+          </li>
+        </ul>
+      </div>
     </div>
   {% else %}
-
     <div class="row">
       {% for sem in semesters %}
         <div class="col-md-4 mb-3">
