@@ -34,7 +34,7 @@ def solve_plan(plan_id: int):
     except ValueError as e:
         # This is where "No courses defined for plan_id=..." will land
         flash(str(e), "error")
-        return redirect(url_for("main.dashboard"))
+        return redirect(url_for("main.view_plan", plan_id=plan.id))
 
     # Solver flags come from PlanConstraint (Plan settings)
     pc = PlanConstraint.query.filter_by(degree_plan_id=plan.id).first()
@@ -101,40 +101,44 @@ def solve_plan(plan_id: int):
         has_cycle = any(dfs(n) for n in list(graph.keys()) if n not in visited)
         if has_cycle:
             infeasible_hints.append(
-                "There in a prerequisite cycle (A requires B requires ... requires A). "
+                "There is a prerequisite cycle (A requires B requires ... requires A). "
                 "Break the cycle in the prerequisites tab."
             )
-                
-    # Map course_code → Course row
-    course_by_code = {c.code: c for c in plan.courses}
 
-    # Extract chosen semester per course
-    assignments = []
-    for c in inputs["courses"]:
-        chosen_semester = None
-        for s in inputs["allowed_semesters"][c]:
-            var = x[c][s]
-            if var.varValue is not None and var.varValue > 0.5:
-                chosen_semester = s
-                break
-
-        course_obj = course_by_code.get(c)
-        assignments.append(
-            {
-                "code": c,
-                "name": course_obj.name if course_obj else c,
-                "credits": inputs["credits"][c],
-                "difficulty": getattr(course_obj, "difficulty", None),
-                "semester": chosen_semester,
-            }
-        )
-
-    # Group by semester for easier templating
+    # Only build a semester-by-semester schedule when the solver found an optimal solution,
+    #(when infeasible, variable vakes can be misleading or not accurate)
     semesters = sorted(inputs["max_credits_per_semester"].keys())
     courses_by_semester = {s: [] for s in semesters}
-    for a in assignments:
-        if a["semester"] is not None:
-            courses_by_semester[a["semester"]].append(a)
+
+    if status == "Optimal":
+        # Map course_code → Course row
+        course_by_code = {c.code: c for c in plan.courses}
+
+        # Extract chosen semester per course
+        assignments = []
+        for c in inputs["courses"]:
+            chosen_semester = None
+            for s in inputs["allowed_semesters"][c]:
+                var = x[c][s]
+                if var.varValue is not None and var.varValue > 0.5:
+                    chosen_semester = s
+                    break
+
+            course_obj = course_by_code.get(c)
+            assignments.append(
+                {
+                    "code": c,
+                    "name": course_obj.name if course_obj else c,
+                    "credits": inputs["credits"][c],
+                    "difficulty": getattr(course_obj, "difficulty", None),
+                    "semester": chosen_semester,
+                }
+            )
+
+        # Group by semester for easier templating
+        for a in assignments:
+            if a["semester"] is not None:
+                courses_by_semester[a["semester"]].append(a)
 
     return render_template(
         "plan_schedule.html",
