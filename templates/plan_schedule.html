@@ -3,9 +3,10 @@
 {% block content %}
   <h2>Schedule for "{{ plan.name }}"</h2>
   
+  {% set badge_class = "bg-success" if status == "Optimal" else "bg-warning" %}
   <p>
     Solver status:
-    <span class="badge bg-secondary">{{ status }}</span>
+    <span class="badge {{ badge_class }}">{{ status }}</span>
   </p>
 
   <div class="mb-3">

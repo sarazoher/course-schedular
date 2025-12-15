@@ -10,7 +10,7 @@ from services.solver import build_inputs_from_plan, build_model
 from extensions import db
 
 
-@main_bp.route("/plans/<int:plan_id>/solve")
+@main_bp.route("/plans/<int:plan_id>/solve", methods=["POST"])
 @login_required
 def solve_plan(plan_id: int):
     """

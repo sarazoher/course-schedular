@@ -11,28 +11,30 @@
   </div>
 
   <div class="text-end">
-    <a href="{{ url_for('main.dashboard') }}" 
+    <a href="{{ url_for('main.dashboard') }}"
        class="btn btn-outline-secondary me-2">
       &larr; Back to dashboard
     </a>
-
 
     <a href="{{ url_for('main.plan_settings', plan_id=plan.id) }}"
        class="btn btn-outline-secondary me-2">
       Plan settings
     </a>
 
-    <a href="{{ url_for('main.solve_plan', plan_id=plan.id) }}"
-       class="btn btn-primary">
-      Solve plan
-    </a>
+    <form method="POST"
+          action="{{ url_for('main.solve_plan', plan_id=plan.id) }}"
+          class="d-inline">
+      <button type="submit" class="btn btn-primary">
+        Solve Plan
+      </button>
+    </form>
+
+    {# later we can show "last solved" status here if you store it #}
+    {# <div class="alert alert-secondary small">
+         Last solved: {{ plan.last_solved_at }} • Status: {{ plan.last_solve_status }}
+       </div> #}
   </div>
 </div>
-
-{# later we can show "last solved" status here if you store it #}
-{# <div class="alert alert-secondary small">
-     Last solved: {{ plan.last_solved_at }} • Status: {{ plan.last_solve_status }}
-   </div> #}
 
 <h4 class="mt-4 mb-2">Courses in this plan</h4>
 
@@ -47,10 +49,7 @@
       {% for course in courses %}
         <li class="list-group-item d-flex justify-content-between align-items-center">
           <div>
-            <!-- Clicking the code/name goes to the unified Course Detail page -->
-            <a href="{{ url_for('main.course_detail',
-                                plan_id=plan.id,
-                                course_id=course.id) }}"
+            <a href="{{ url_for('main.course_detail', plan_id=plan.id, course_id=course.id) }}"
                class="fw-semibold text-decoration-none">
               {{ course.code }} — {{ course.name }}
             </a>
@@ -63,17 +62,13 @@
           </div>
 
           <div class="btn-group">
-            <a href="{{ url_for('main.course_detail',
-                                plan_id=plan.id,
-                                course_id=course.id) }}"
+            <a href="{{ url_for('main.course_detail', plan_id=plan.id, course_id=course.id) }}"
                class="btn btn-sm btn-outline-secondary">
               Edit &amp; details
             </a>
 
             <form method="POST"
-                  action="{{ url_for('main.delete_course',
-                                     plan_id=plan.id,
-                                     course_id=course.id) }}"
+                  action="{{ url_for('main.delete_course', plan_id=plan.id, course_id=course.id) }}"
                   onsubmit="return confirm('Delete this course?');">
               <button type="submit" class="btn btn-sm btn-outline-danger">
                 Delete
@@ -88,7 +83,6 @@
   <p class="text-muted">No courses in this plan yet.</p>
 {% endif %}
 
-<!-- Simple "Add course" area (uses your existing add_course route) -->
 <div class="card">
   <div class="card-header">
     Add a new course
