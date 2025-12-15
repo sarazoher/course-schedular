@@ -20,6 +20,8 @@ class PlanConstraint(db.Model):
     max_difficulty_per_semester = db.Column(db.Integer, nullable=True)
 
     total_semesters = db.Column(db.Integer, nullable=True)
+    years = db.Column(db.Integer, nullable=True)
+    semesters_per_year = db.Column(db.Integer, nullable=True)
 
     # solver behavior flags (3)
     enforce_prereqs = db.Column(db.Boolean, nullable=False, default=True)

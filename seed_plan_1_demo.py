@@ -27,7 +27,11 @@ def main():
         PlanConstraint.query.filter_by(degree_plan_id=plan.id).delete()
         db.session.commit()
 
-        #  create courses 
+# ----------------------------------------------------------------------------------------------------------------
+#   CREATE COURSE - details: ID in db, add CODE, NAME, credits, difficulty (optional in general)
+# ----------------------------------------------------------------------------------------------------------------
+        
+        
         c101 = Course(
             degree_plan_id=plan.id,
             code="CS101",
@@ -60,7 +64,12 @@ def main():
         db.session.add_all([c101, c102, c103, c201])
         db.session.flush()  # get IDs for offerings/prereqs
 
-        # offerings - when each course can be taken (semester) 
+
+
+# ----------------------------------------------------------------------------------------------------------------
+#   OFFERINGS - which semester a course can be taken (based on total_semesters stated below in PlanConstraints)
+# ----------------------------------------------------------------------------------------------------------------
+
         offerings = [
             # CS101 in semesters 1,2
             CourseOffering(course_id=c101.id, semester_number=1),
@@ -81,7 +90,13 @@ def main():
         ]
         db.session.add_all(offerings)
 
-        #  prereqs - used same logic as demo3
+
+
+# ----------------------------------------------------------------------------------------------------------------
+#   PREREQS - course B after A, visually A ---➔ B
+# ----------------------------------------------------------------------------------------------------------------
+
+
         prereqs = [
             # CS102 after CS101
             Prerequisite(
@@ -111,7 +126,7 @@ def main():
             max_credits_per_semester=6,  
             max_courses_per_semester=None,
             max_difficulty_per_semester=None,
-            total_semesters=3,            # we’ll plan over 3 semesters
+            total_semesters=3,  # we’ll plan over 3 semesters, for simplicity
         )
         db.session.add(constraints)
 

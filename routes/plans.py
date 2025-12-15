@@ -90,27 +90,56 @@ def plan_settings(plan_id: int):
         pc = PlanConstraint(
             degree_plan_id=plan.id,
             total_semesters=6,  # default
-            max_credits_per_semester=None, 
+            max_credits_per_semester=None,
             enforce_prereqs=True,
             enforce_credit_limits=True,
             minimize_last_semester=True,
+            years=None,                 # optional, in the plan 
+            semesters_per_year=None,    # optional, in the plan 
         )
         db.session.add(pc)
         db.session.commit()
 
     if request.method == "POST":
-        # --- total semesters ---
-        total_semesters_raw = (request.form.get("total_semesters") or "").strip()
-        try:
-            total_semesters_val = int(total_semesters_raw)
-        except ValueError:
-            flash("Total semesters must be a whole number.", "error")
-            return redirect(url_for("main.plan_settings", plan_id=plan.id))
+        # ---- plan structure (optional): years × semesters per year ----
+        years_raw = (request.form.get("years") or "").strip()
+        semesters_per_year_raw = (request.form.get("semesters_per_year") or "").strip()
 
+        years_val = None
+        semesters_per_year_val = None
+
+        # If both are provided, compute total_semesters from them
+        if years_raw and semesters_per_year_raw:
+            try:
+                years_val = int(years_raw)
+                semesters_per_year_val = int(semesters_per_year_raw)
+            except ValueError:
+                flash("Years and semesters per year must be whole numbers.", "error")
+                return redirect(url_for("main.plan_settings", plan_id=plan.id))
+
+            if years_val < 1 or years_val > 10:
+                flash("Years must be between 1 and 10.", "error")
+                return redirect(url_for("main.plan_settings", plan_id=plan.id))
+
+            if semesters_per_year_val < 1 or semesters_per_year_val > 6:
+                flash("Semesters per year must be between 1 and 6.", "error")
+                return redirect(url_for("main.plan_settings", plan_id=plan.id))
+
+            total_semesters_val = years_val * semesters_per_year_val
+
+        # --- total semesters (manual fallback) ---
+        else:
+            total_semesters_raw = (request.form.get("total_semesters") or "").strip()
+            try:
+                total_semesters_val = int(total_semesters_raw)
+            except ValueError:
+                flash("Total semesters must be a whole number.", "error")
+                return redirect(url_for("main.plan_settings", plan_id=plan.id))
+
+        # Validate total semesters regardless of source
         if total_semesters_val < 1 or total_semesters_val > 20:
             flash("Total semesters must be between 1 and 20.", "error")
             return redirect(url_for("main.plan_settings", plan_id=plan.id))
-        
 
         # ---- max credits per semester (blank means no limit) ----
         max_credits_raw = (request.form.get("max_credits_per_semester") or "").strip()
@@ -133,6 +162,8 @@ def plan_settings(plan_id: int):
         minimize_last_semester_val = request.form.get("minimize_last_semester") == "on"
 
         # persist
+        pc.years = years_val
+        pc.semesters_per_year = semesters_per_year_val
         pc.total_semesters = total_semesters_val
         pc.max_credits_per_semester = max_credits_val
         pc.enforce_prereqs = enforce_prereqs_val

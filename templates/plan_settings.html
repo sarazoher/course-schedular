@@ -2,102 +2,145 @@
 
 {% block content %}
 
-<a href="{{ url_for('main.view_plan', plan_id=plan.id) }}" class="btn btn-link mb-3">
-  &larr; Back to plan "{{ plan.name }}"
-</a>
+  <a href="{{ url_for('main.view_plan', plan_id=plan.id) }}" class="btn btn-link mb-3">
+    &larr; Back to plan "{{ plan.name }}"
+  </a>
 
-<h2 class="mb-3">Plan settings</h2>
+  <h2 class="mb-3">Plan settings</h2>
 
-<div class="card">
-  <div class="card-body">
-    <form method="POST" action="{{ url_for('main.plan_settings', plan_id=plan.id) }}">
+  <div class="card">
+    <div class="card-body">
+      <form method="POST" action="{{ url_for('main.plan_settings', plan_id=plan.id) }}">
 
-      <!-- Total semesters -->
-      <div class="mb-3">
-        <label for="total_semesters" class="form-label"> Total semesters </label>
-        <input 
-          type="number"
-          class="form-control"
-          id="total_semesters"
-          name="total_semesters"
-          min="1"
-          max="20"
-          value="{{ constraints.total_semesters or 6 }}"
-          required
-        >
-        <div class="form-text">
-          Controls how many semesters exist in offerings and in the solver.
+        <h5 class="mb-3">Plan structure (optional)</h5>
+
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label for="years" class="form-label">Number of years</label>
+            <input
+              type="number"
+              class="form-control"
+              id="years"
+              name="years"
+              min="1"
+              max="10"
+              value="{{ constraints.years if constraints and constraints.years is not none else '' }}"
+              placeholder="e.g. 3"
+            >
+          </div>
+
+          <div class="col-md-6 mb-3">
+            <label for="semesters_per_year" class="form-label">
+              Semesters per year
+            </label>
+            <input
+              type="number"
+              class="form-control"
+              id="semesters_per_year"
+              name="semesters_per_year"
+              min="1"
+              max="6"
+              value="{{ constraints.semesters_per_year if constraints and constraints.semesters_per_year is not none else '' }}"
+              placeholder="e.g. 3"
+            >
+            <div class="form-text">
+              Example: some majors run 3 semesters per year (including summer).
+            </div>
+          </div>
         </div>
-      </div>
 
-      <!-- Max credits per semester -->
-      <div class="mb-3">
-        <label class="form-label" for="max_credits_per_semester">Max credits per semester</label>
-        <input
-          type="number"
-          class="form-control"
-          id="max_credits_per_semester"
-          name="max_credits_per_semester"
-          min="1"
-          max="60"
-          value="{{ constraints.max_credits_per_semester if constraints.max_credits_per_semester is not none else '' }}"
-          placeholder="Leave blank for no limit"
-        >
-        <div class="form-text">
-          If left blank, the solver will not enforce a credit cap per semester.
+        <hr class="my-4">
 
+        <!-- Total semesters -->
+        <div class="mb-3">
+          <label for="total_semesters" class="form-label">
+            Total semesters
+          </label>
+          <input
+            type="number"
+            class="form-control"
+            id="total_semesters"
+            name="total_semesters"
+            min="1"
+            max="20"
+            value="{{ constraints.total_semesters or 6 }}"
+            required
+          >
+          <div class="form-text">
+            Controls how many semesters exist in offerings and in the solver.
+          </div>
         </div>
-      </div>
 
-      <hr class="my-4">
+        <!-- Max credits per semester -->
+        <div class="mb-3">
+          <label for="max_credits_per_semester" class="form-label">
+            Max credits per semester
+          </label>
+          <input
+            type="number"
+            class="form-control"
+            id="max_credits_per_semester"
+            name="max_credits_per_semester"
+            min="1"
+            max="60"
+            value="{{ constraints.max_credits_per_semester if constraints.max_credits_per_semester is not none else '' }}"
+            placeholder="Leave blank for no limit"
+          >
+          <div class="form-text">
+            If left blank, the solver will not enforce a credit cap per semester.
+          </div>
+        </div>
 
-      <!-- Solver flags -->
-      <h5 class="mb-3">Solver settings</h5>
+        <hr class="my-4">
 
-      <div class="form-check mb-2">
-        <input
-          class="form-check-input"
-          type="checkbox"
-          id="enforce_prereqs"
-          name="enforce_prereqs"
-          {% if constraints.enforce_prereqs %}checked{% endif %}
-        >
-        <label class="form-check-label" for="enforce_prereqs">
-          Enforce prerequisites
-        </label>
-      </div>
+        <!-- Solver flags -->
+        <h5 class="mb-3">Solver settings</h5>
 
-      <div class="form-check mb-2">
-        <input
-          class="form-check-input"
-          type="checkbox"
-          id="enforce_credit_limits"
-          name="enforce_credit_limits"
-          {% if constraints.enforce_credit_limits %}checked{% endif %}
-        >
-        <label class="form-check-label" for="enforce_credit_limits">
-          Enforce credit limits
-        </label>
-      </div>
+        <div class="form-check mb-2">
+          <input
+            class="form-check-input"
+            type="checkbox"
+            id="enforce_prereqs"
+            name="enforce_prereqs"
+            {% if constraints.enforce_prereqs %}checked{% endif %}
+          >
+          <label class="form-check-label" for="enforce_prereqs">
+            Enforce prerequisites
+          </label>
+        </div>
 
-      <div class="form-check mb-3">
-        <input
-          class="form-check-input"
-          type="checkbox"
-          id="minimize_last_semester"
-          name="minimize_last_semester"
-          {% if constraints.minimize_last_semester %}checked{% endif %}
-        >
-        <label class="form-check-label" for="minimize_last_semester">
-          Minimize last semester (finish earlier when possible)
-        </label>
-      </div>
-            
-      <button type="submit" class="btn btn-primary">
-        Save settings
-      </button>
-    </form>
+        <div class="form-check mb-2">
+          <input
+            class="form-check-input"
+            type="checkbox"
+            id="enforce_credit_limits"
+            name="enforce_credit_limits"
+            {% if constraints.enforce_credit_limits %}checked{% endif %}
+          >
+          <label class="form-check-label" for="enforce_credit_limits">
+            Enforce credit limits
+          </label>
+        </div>
+
+        <div class="form-check mb-3">
+          <input
+            class="form-check-input"
+            type="checkbox"
+            id="minimize_last_semester"
+            name="minimize_last_semester"
+            {% if constraints.minimize_last_semester %}checked{% endif %}
+          >
+          <label class="form-check-label" for="minimize_last_semester">
+            Minimize last semester (finish earlier when possible)
+          </label>
+        </div>
+
+        <button type="submit" class="btn btn-primary">
+          Save settings
+        </button>
+
+      </form>
+    </div>
   </div>
-</div>
 
 {% endblock %}
