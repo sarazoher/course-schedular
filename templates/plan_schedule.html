@@ -1,25 +1,34 @@
 {% extends "base.html" %}
 
 {% block content %}
-  <h2>Schedule for "{{ plan.name }}"</h2>
-  
-  {% set badge_class = "bg-success" if status == "Optimal" else "bg-warning" %}
-  <p>
-    Solver status:
-    <span class="badge {{ badge_class }}">{{ status }}</span>
-  </p>
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <h2 class="mb-0">Schedule for "{{ plan.name }}"</h2>
 
-  <div class="mb-3">
-    <a href="{{ url_for('main.view_plan', plan_id=plan.id) }}" class="btn btn-link">
-      &larr; Back to plan
-    </a>
-    <a href="{{ url_for('main.plan_settings', plan_id=plan.id) }}" class="btn btn-outline-secondary btn-sm ms-2">
-      Plan settings
-    </a>
-    <a href="{{ url_for('main.dashboard') }}" class="btn btn-outline-secondary btn-sm ms-2">
-      Dashboard
-    </a>
+    <div class="text-end">
+      <a href="{{ url_for('main.view_plan', plan_id=plan.id) }}"
+         class="btn btn-outline-secondary btn-sm me-2">
+        &larr; Back to plan
+      </a>
+
+      <a href="{{ url_for('main.plan_settings', plan_id=plan.id) }}"
+         class="btn btn-outline-secondary btn-sm me-2">
+        Plan settings
+      </a>
+
+      <form method="POST"
+            action="{{ url_for('main.solve_plan', plan_id=plan.id) }}"
+            class="d-inline">
+        <button type="submit" class="btn btn-primary btn-sm">
+          Re-solve
+        </button>
+      </form>
+    </div>
   </div>
+
+  <p class="mb-3">
+    Solver status:
+    <span class="badge bg-secondary">{{ status }}</span>
+  </p>
 
   {% set hints = infeasible_hints | default([]) %}
 
@@ -58,7 +67,11 @@
         <div class="col-md-4 mb-3">
           <div class="card h-100">
             <div class="card-header">
-              {{ semester_labels[sem] }}
+              {% if semester_labels is defined and sem in semester_labels %}
+                {{ semester_labels[sem] }}
+              {% else %}
+                Semester {{ sem }}
+              {% endif %}
             </div>
             <ul class="list-group list-group-flush">
               {% if courses_by_semester[sem] %}

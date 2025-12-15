@@ -2,137 +2,157 @@
 
 {% block content %}
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <div>
-    <h2 class="mb-1">Plan: "{{ plan.name }}"</h2>
-  </div>
+<div class="d-flex justify-content-between align-items-center mb-2">
+  <h2 class="mb-0">Plan: "{{ plan.name }}"</h2>
 
   <div class="text-end">
-    <a href="{{ url_for('main.dashboard') }}"
-       class="btn btn-outline-secondary me-2">
-      &larr; Back to dashboard
+    <a
+      href="{{ url_for('main.dashboard') }}"
+      class="btn btn-outline-secondary btn-sm me-2"
+    >
+      &larr; Back
     </a>
 
-    <a href="{{ url_for('main.plan_settings', plan_id=plan.id) }}"
-       class="btn btn-outline-secondary me-2">
+    <a
+      href="{{ url_for('main.plan_settings', plan_id=plan.id) }}"
+      class="btn btn-outline-secondary btn-sm me-2"
+    >
       Plan settings
     </a>
 
-    <form method="POST"
-          action="{{ url_for('main.solve_plan', plan_id=plan.id) }}"
-          class="d-inline">
-      <button type="submit" class="btn btn-primary">
-        Solve Plan
+    <form
+      method="POST"
+      action="{{ url_for('main.solve_plan', plan_id=plan.id) }}"
+      class="d-inline"
+    >
+      <button type="submit" class="btn btn-primary btn-sm">
+        Solve plan
       </button>
     </form>
-
-    {# later we can show "last solved" status here if you store it #}
-    {# <div class="alert alert-secondary small">
-         Last solved: {{ plan.last_solved_at }} • Status: {{ plan.last_solve_status }}
-       </div> #}
   </div>
 </div>
 
-<h4 class="mt-4 mb-2">Courses in this plan</h4>
 
-{% if courses %}
-  <div class="card mb-4">
-    <div class="card-header d-flex justify-content-between align-items-center">
-      <span>Courses</span>
-      <span class="badge bg-secondary">{{ courses|length }}</span>
-    </div>
+  <h4 class="mt-4 mb-2">Courses in this plan</h4>
 
-    <ul class="list-group list-group-flush">
-      {% for course in courses %}
-        <li class="list-group-item d-flex justify-content-between align-items-center">
-          <div>
-            <a href="{{ url_for('main.course_detail', plan_id=plan.id, course_id=course.id) }}"
-               class="fw-semibold text-decoration-none">
-              {{ course.code }} — {{ course.name }}
-            </a>
-            <div class="small text-muted">
-              {{ course.credits }} credits
-              {% if course.difficulty is not none %}
-                • Difficulty: {{ course.difficulty }}
-              {% endif %}
-            </div>
-          </div>
-
-          <div class="btn-group">
-            <a href="{{ url_for('main.course_detail', plan_id=plan.id, course_id=course.id) }}"
-               class="btn btn-sm btn-outline-secondary">
-              Edit &amp; details
-            </a>
-
-            <form method="POST"
-                  action="{{ url_for('main.delete_course', plan_id=plan.id, course_id=course.id) }}"
-                  onsubmit="return confirm('Delete this course?');">
-              <button type="submit" class="btn btn-sm btn-outline-danger">
-                Delete
-              </button>
-            </form>
-          </div>
-        </li>
-      {% endfor %}
-    </ul>
-  </div>
-{% else %}
-  <p class="text-muted">No courses in this plan yet.</p>
-{% endif %}
-
-<div class="card">
-  <div class="card-header">
-    Add a new course
-  </div>
-  <div class="card-body">
-    <form method="POST"
-          action="{{ url_for('main.add_course', plan_id=plan.id) }}">
-      <div class="row">
-        <div class="col-md-3 mb-3">
-          <label for="code" class="form-label">Code</label>
-          <input type="text"
-                 class="form-control"
-                 id="code"
-                 name="code"
-                 required>
-        </div>
-
-        <div class="col-md-5 mb-3">
-          <label for="name" class="form-label">Name</label>
-          <input type="text"
-                 class="form-control"
-                 id="name"
-                 name="name"
-                 required>
-        </div>
-
-        <div class="col-md-2 mb-3">
-          <label for="credits" class="form-label">Credits</label>
-          <input type="number"
-                 class="form-control"
-                 id="credits"
-                 name="credits"
-                 min="0"
-                 step="0.5"
-                 required>
-        </div>
-
-        <div class="col-md-2 mb-3">
-          <label for="difficulty" class="form-label">Difficulty (optional)</label>
-          <input type="number"
-                 class="form-control"
-                 id="difficulty"
-                 name="difficulty"
-                 min="1"
-                 max="5">
-        </div>
+  {% if courses %}
+    <div class="card mb-4">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Courses</span>
+        <span class="badge bg-secondary">{{ courses|length }}</span>
       </div>
 
-      <button type="submit" class="btn btn-success">
-        Add course
-      </button>
-    </form>
+      <ul class="list-group list-group-flush">
+        {% for course in courses %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <div>
+              <a
+                href="{{ url_for('main.course_detail', plan_id=plan.id, course_id=course.id) }}"
+                class="fw-semibold text-decoration-none"
+              >
+                {{ course.code }} — {{ course.name }}
+              </a>
+
+              <div class="small text-muted">
+                {{ course.credits }} credits
+                {% if course.difficulty is not none %}
+                  • Difficulty: {{ course.difficulty }}
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="btn-group">
+              <a
+                href="{{ url_for('main.course_detail', plan_id=plan.id, course_id=course.id) }}"
+                class="btn btn-sm btn-outline-secondary"
+              >
+                Edit &amp; details
+              </a>
+
+              <form
+                method="POST"
+                action="{{ url_for('main.delete_course', plan_id=plan.id, course_id=course.id) }}"
+                onsubmit="return confirm('Delete this course?');"
+              >
+                <button type="submit" class="btn btn-sm btn-outline-danger">
+                  Delete
+                </button>
+              </form>
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% else %}
+    <p class="text-muted">No courses in this plan yet.</p>
+  {% endif %}
+
+  <div class="card">
+    <div class="card-header">
+      Add a new course
+    </div>
+
+    <div class="card-body">
+      <form
+        method="POST"
+        action="{{ url_for('main.add_course', plan_id=plan.id) }}"
+      >
+        <div class="row">
+          <div class="col-md-3 mb-3">
+            <label for="code" class="form-label">Code</label>
+            <input
+              type="text"
+              class="form-control"
+              id="code"
+              name="code"
+              required
+            >
+          </div>
+
+          <div class="col-md-5 mb-3">
+            <label for="name" class="form-label">Name</label>
+            <input
+              type="text"
+              class="form-control"
+              id="name"
+              name="name"
+              required
+            >
+          </div>
+
+          <div class="col-md-2 mb-3">
+            <label for="credits" class="form-label">Credits</label>
+            <input
+              type="number"
+              class="form-control"
+              id="credits"
+              name="credits"
+              min="0"
+              step="0.5"
+              required
+            >
+          </div>
+
+          <div class="col-md-2 mb-3">
+            <label for="difficulty" class="form-label">
+              Difficulty (optional)
+            </label>
+            <input
+              type="number"
+              class="form-control"
+              id="difficulty"
+              name="difficulty"
+              min="1"
+              max="5"
+            >
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-success">
+          Add course
+        </button>
+      </form>
+    </div>
   </div>
-</div>
 
 {% endblock %}

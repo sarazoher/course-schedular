@@ -2,21 +2,48 @@
 
 {% block content %}
 
-  <a href="{{ url_for('main.view_plan', plan_id=plan.id) }}" class="btn btn-link mb-3">
-    &larr; Back to plan "{{ plan.name }}"
-  </a>
+<div class="d-flex justify-content-between align-items-center mb-2">
+  <h2 class="mb-0">Plan settings</h2>
 
-  <h2 class="mb-3">Plan settings</h2>
+  <div class="text-end">
+    <a
+      href="{{ url_for('main.view_plan', plan_id=plan.id) }}"
+      class="btn btn-outline-secondary btn-sm me-2"
+    >
+      &larr; Back to plan
+    </a>
+
+    <span class="btn btn-outline-secondary btn-sm me-2 disabled">
+      Plan settings
+    </span>
+
+    <form
+      method="POST"
+      action="{{ url_for('main.solve_plan', plan_id=plan.id) }}"
+      class="d-inline"
+    >
+      <button type="submit" class="btn btn-primary btn-sm">
+        Solve plan
+      </button>
+    </form>
+  </div>
+</div>
+
 
   <div class="card">
     <div class="card-body">
-      <form method="POST" action="{{ url_for('main.plan_settings', plan_id=plan.id) }}">
+      <form
+        method="POST"
+        action="{{ url_for('main.plan_settings', plan_id=plan.id) }}"
+      >
 
         <h5 class="mb-3">Plan structure (optional)</h5>
 
         <div class="row">
           <div class="col-md-6 mb-3">
-            <label for="years" class="form-label">Number of years</label>
+            <label for="years" class="form-label">
+              Number of years
+            </label>
             <input
               type="number"
               class="form-control"
