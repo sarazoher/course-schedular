@@ -155,7 +155,7 @@
                    id="sem{{ s }}"
                    {% if s in selected_semesters %}checked{% endif %}>
             <label class="form-check-label" for="sem{{ s }}">
-              Semester {{ s }}
+              {{ semester_labels[s] }}
             </label>
           </div>
           {% endfor %}

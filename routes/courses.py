@@ -8,6 +8,7 @@ from models.course_offering import CourseOffering
 from models.prerequisite import Prerequisite
 from models.plan_constraint import PlanConstraint
 from extensions import db
+from utils.semesters import format_semester_label
 
 @main_bp.route("/plans/<int:plan_id>/courses/add", methods=["POST"])
 @login_required
@@ -321,6 +322,10 @@ def course_detail(plan_id: int, course_id: int):
     # Selected semesters for this course (offerings tab)
     selected_semesters = [off.semester_number for off in course.offerings]
 
+    # Semester labels for UI (Year/Term when semesters_per_year is set)
+    semesters_per_year = constraints.semesters_per_year if constraints else None
+    semester_labels = {s: format_semester_label(s, semesters_per_year) for s in range(1, total_semesters + 1)}
+
     # Incoming prereqs: what this course REQUIRES
     incoming_prereqs = Prerequisite.query.filter_by(
         degree_plan_id=plan.id,
@@ -379,6 +384,7 @@ def course_detail(plan_id: int, course_id: int):
         outgoing_prereqs=outgoing_prereqs,
         available_prereq_courses=available_prereq_courses,
         cycle_risk_ids=cycle_risk_ids,
+        semester_labels=semester_labels,
     )
 
 @main_bp.route("/plans/<int:plan_id>/courses/<int:course_id>/prereqs/add", methods=["POST"])

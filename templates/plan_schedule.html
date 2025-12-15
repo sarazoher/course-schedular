@@ -58,7 +58,7 @@
         <div class="col-md-4 mb-3">
           <div class="card h-100">
             <div class="card-header">
-              Semester {{ sem }}
+              {{ semester_labels[sem] }}
             </div>
             <ul class="list-group list-group-flush">
               {% if courses_by_semester[sem] %}
