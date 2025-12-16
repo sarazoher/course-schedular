@@ -1,3 +1,5 @@
+# routes/solver_routes.py
+
 from flask import render_template, redirect, url_for, request, abort, flash
 from flask_login import login_required, current_user
 
@@ -9,6 +11,7 @@ from models.plan_constraint import PlanConstraint
 from services.solver import build_inputs_from_plan, build_model
 from extensions import db
 from utils.semesters import format_semester_label
+from services.validation import validate_inputs_before_solve
 
 
 @main_bp.route("/plans/<int:plan_id>/solve", methods=["GET", "POST"])
@@ -42,6 +45,20 @@ def solve_plan(plan_id: int):
         # This is where "No courses defined for plan_id=..." will land
         flash(str(e), "error")
         return redirect(url_for("main.view_plan", plan_id=plan_id))
+    
+    # Pre-solve Validation
+    precheck_hints = validate_inputs_before_solve(inputs)
+    if precheck_hints:
+        return render_template(
+            "plan_schedule.html",
+            plan=plan,
+            status="Infeasible",
+            semesters=[],
+            semester_labels={},
+            courses_by_semester={},
+            infeasible_hints=precheck_hints,
+        )
+
 
     # Solver flags come from PlanConstraint (Plan settings)
     pc = PlanConstraint.query.filter_by(degree_plan_id=plan.id).first()
@@ -112,40 +129,52 @@ def solve_plan(plan_id: int):
                 "Break the cycle in the prerequisites tab."
             )
                 
-    # Map course_code → Course row
-    course_by_code = {c.code: c for c in plan.courses}
-
-    # Extract chosen semester per course
-    assignments = []
-    for c in inputs["courses"]:
-        chosen_semester = None
-        for s in inputs["allowed_semesters"][c]:
-            var = x[c][s]
-            if var.varValue is not None and var.varValue > 0.5:
-                chosen_semester = s
-                break
-
-        course_obj = course_by_code.get(c)
-        assignments.append(
-            {
-                "code": c,
-                "name": course_obj.name if course_obj else c,
-                "credits": inputs["credits"][c],
-                "difficulty": getattr(course_obj, "difficulty", None),
-                "semester": chosen_semester,
-            }
-        )
-
-    # Group by semester for easier templating
     semesters = sorted(inputs["max_credits_per_semester"].keys())
-    courses_by_semester = {s: [] for s in semesters}
-    for a in assignments:
-        if a["semester"] is not None:
-            courses_by_semester[a["semester"]].append(a)
-
-    # Semester labels for UI (Year/Term when semesters_per_year is set)
     semesters_per_year = pc.semesters_per_year if pc and pc.semesters_per_year else None
     semester_labels = {s: format_semester_label(s, semesters_per_year) for s in semesters}
+
+    courses_by_semester = {s: [] for s in semesters}
+
+    if status == "Optimal":
+        # Setup: Map course_code → Course row
+        course_by_code = {c.code: c for c in plan.courses}
+
+        # Extract chosen semester per course
+        for c in inputs["courses"]:
+            chosen_semester = None
+            for s in inputs["allowed_semesters"][c]:
+                var = x[c][s]
+                if var.varValue is not None and var.varValue > 0.5:
+                    chosen_semester = s
+                    break
+            
+            if chosen_semester is None:
+                continue
+
+            course_obj = course_by_code.get(c)
+
+            # KeyError
+            courses_by_semester.setdefault(chosen_semester, []).append(
+                {
+                    "code": c,
+                    "name": course_obj.name if course_obj else c,
+                    "credits": inputs["credits"][c],
+                    "difficulty": getattr(course_obj, "difficulty", None),
+                }
+            )
+        
+        # Trim empty semesters 
+        used = [s for s, lst in courses_by_semester.items() if lst]
+        if used:
+            last_used = max(used)
+            semesters = [s for s in semesters if s <= last_used]
+            courses_by_semester = {s: courses_by_semester.get(s, []) for s in semesters}
+            semester_labels = {s: semester_labels.get(s, f"Semester {s}") for s in semesters}
+
+    #print("STATUS:", status)
+    #print("SEMESTERS:", semesters)
+    #print("COURSES_BY_SEMESTER:", courses_by_semester)
+
 
     return render_template(
         "plan_schedule.html",

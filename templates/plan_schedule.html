@@ -74,13 +74,15 @@
               {% endif %}
             </div>
             <ul class="list-group list-group-flush">
-              {% if courses_by_semester[sem] %}
-                {% for course in courses_by_semester[sem] %}
+              {% set bucket = courses_by_semester.get(sem, []) %}
+              {% if bucket %}
+                {% for course in bucket %}
                   <li class="list-group-item">
-                    <strong>{{ course.code }}</strong> — {{ course.name }}<br>
+                    <strong>{{ course.code | default('') }}</strong>
+                    — {{ course.name | default('') }}<br>
                     <small>
-                      Credits: {{ course.credits }}
-                      {% if course.difficulty is not none %}
+                      Credits: {{ course.credits | default('') }}
+                      {% if course.difficulty is not none and course.difficulty != '' %}
                         • Difficulty: {{ course.difficulty }}
                       {% endif %}
                     </small>
