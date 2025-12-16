@@ -36,8 +36,15 @@
         method="POST"
         action="{{ url_for('main.plan_settings', plan_id=plan.id) }}"
       >
-
         <h5 class="mb-3">Plan structure (optional)</h5>
+        <p class="text-muted small mb-3">
+          Used for semester labels only. Solver limits are controlled by
+          <strong>Total semesters</strong> and <strong>Max credits</strong>.
+        </p>
+
+        <div class="form-text">
+          Leave both fields blank to disable plan-structure labels.
+        </div>
 
         <div class="row">
           <div class="col-md-6 mb-3">
@@ -129,7 +136,7 @@
             type="checkbox"
             id="enforce_prereqs"
             name="enforce_prereqs"
-            {% if constraints.enforce_prereqs %}checked{% endif %}
+            {% if constraints and constraints.enforce_prereqs %}checked{% endif %}
           >
           <label class="form-check-label" for="enforce_prereqs">
             Enforce prerequisites
@@ -142,7 +149,7 @@
             type="checkbox"
             id="enforce_credit_limits"
             name="enforce_credit_limits"
-            {% if constraints.enforce_credit_limits %}checked{% endif %}
+            {% if constraints and constraints.enforce_credit_limits %}checked{% endif %}
           >
           <label class="form-check-label" for="enforce_credit_limits">
             Enforce credit limits
@@ -155,7 +162,7 @@
             type="checkbox"
             id="minimize_last_semester"
             name="minimize_last_semester"
-            {% if constraints.minimize_last_semester %}checked{% endif %}
+            {% if constraints and constraints.minimize_last_semester %}checked{% endif %}
           >
           <label class="form-check-label" for="minimize_last_semester">
             Minimize last semester (finish earlier when possible)

@@ -58,6 +58,9 @@ def solve_plan(plan_id: int):
             courses_by_semester={},
             infeasible_hints=precheck_hints,
         )
+    
+    # print("COURSES:", inputs["courses"])
+    # print("ALLOWED:", inputs["allowed_semesters"])
 
 
     # Solver flags come from PlanConstraint (Plan settings)
@@ -81,53 +84,97 @@ def solve_plan(plan_id: int):
 
     model.solve(PULP_CBC_CMD(msg=0))
     status = LpStatus[model.status]
+    prereqs = inputs.get("prereqs", {})
+    allowed = inputs.get("allowed_semesters", {})
 
     infeasible_hints = []
 
     if status != "Optimal":
-        prereqs = inputs.get("prereqs", {})
-        allowed = inputs.get("allowed_semesters", {})
 
-        impossible_edges = []
-        for course, pres in prereqs.items():
-            for pre in pres:
-                pre_max = max(allowed.get(pre, []), default=None)
-                course_min = min(allowed.get(course, []), default=None)
-                if pre_max is not None and course_min is not None and pre_max >= course_min:
-                    impossible_edges.append(f"{pre} → {course}")
-
-        if impossible_edges:
+        # (A) Missing offerings: course has no allowed semesters
+        no_offerings = [c for c in inputs.get("courses", []) if not allowed.get(c)]
+        if no_offerings:
             infeasible_hints.append(
-                "Some prerequisites are impossible given the current offerings/allowed semesters: "
-                + ", ".join(impossible_edges[:6])
-                + (", ..." if len(impossible_edges) > 6 else "")
+                "Some courses have no offerings (no allowed semesters): "
+                + ", ".join(no_offerings[:6])
+                + (", ..." if len(no_offerings) > 6 else "")
             )
-        graph = {}
-        for course, pres in prereqs.items():
-            for pre in pres:
-                graph.setdefault(pre, []).append(course)
 
-        visited = set()
-        on_stack = set()
+    # (B) Credit capacity pressure: total credits > total capacity
+    max_by_sem = inputs.get("max_credits_per_semester", {}) or {}
+    credits = inputs.get("credits", {}) or {}
 
-        def dfs(node):
-            visited.add(node)
-            on_stack.add(node)
-            for nxt in graph.get(node, []):
-                if nxt not in visited:
-                    if dfs(nxt):
-                        return True
-                elif nxt in on_stack:
+    semesters_for_capacity = sorted(max_by_sem.keys())
+    total_capacity = sum(int(v) for v in max_by_sem.values()) if max_by_sem else 0
+
+    total_credits = 0
+    missing_credit = []
+    for c in inputs.get("courses", []):
+        if c not in credits:
+            missing_credit.append(c)
+        else:
+            total_credits += int(credits[c])
+
+    if missing_credit:
+        infeasible_hints.append(
+            "Some courses are missing credit values: "
+            + ", ".join(missing_credit[:6])
+            + (", ..." if len(missing_credit) > 6 else "")
+        )
+
+    if total_capacity and total_credits > total_capacity:
+        infeasible_hints.append(
+            f"Total credits ({total_credits}) exceed schedule capacity "
+            f"({len(semesters_for_capacity)} semesters, total max {total_capacity} credits). "
+            "Increase total semesters / max credits, or reduce course credits."
+        )
+
+    # Impossible prereq edges (offerings make prereq ordering impossible)
+    impossible_edges = []
+    for course, pres in prereqs.items():
+        for pre in pres:
+            pre_max = max(allowed.get(pre, []), default=None)
+            course_min = min(allowed.get(course, []), default=None)
+            if pre_max is not None and course_min is not None and pre_max >= course_min:
+                impossible_edges.append(f"{pre} → {course}")
+
+    if impossible_edges:
+        infeasible_hints.append(
+            "Some prerequisites are impossible due to offerings: the prerequisite can’t be scheduled "
+            "before the course in any allowed semester. Conflicts: "
+            + ", ".join(impossible_edges[:6])
+            + (", ..." if len(impossible_edges) > 6 else "")
+            + ". Fix by adjusting Offerings (allowed semesters) or Prerequisites."
+        )
+
+    # Cycle hint
+    graph = {}
+    for course, pres in prereqs.items():
+        for pre in pres:
+            graph.setdefault(pre, []).append(course)
+
+    visited = set()
+    on_stack = set()
+
+    def dfs(node):
+        visited.add(node)
+        on_stack.add(node)
+        for nxt in graph.get(node, []):
+            if nxt not in visited:
+                if dfs(nxt):
                     return True
-            on_stack.remove(node)
-            return False
-        
-        has_cycle = any(dfs(n) for n in list(graph.keys()) if n not in visited)
-        if has_cycle:
-            infeasible_hints.append(
-                "There in a prerequisite cycle (A requires B requires ... requires A). "
-                "Break the cycle in the prerequisites tab."
-            )
+            elif nxt in on_stack:
+                return True
+        on_stack.remove(node)
+        return False
+
+    has_cycle = any(dfs(n) for n in list(graph.keys()) if n not in visited)
+    if has_cycle:
+        infeasible_hints.append(
+            "There is a prerequisite cycle (A requires B requires ... requires A). "
+            "Break the cycle in the prerequisites tab."
+        )
+
                 
     semesters = sorted(inputs["max_credits_per_semester"].keys())
     semesters_per_year = pc.semesters_per_year if pc and pc.semesters_per_year else None

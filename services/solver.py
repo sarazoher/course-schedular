@@ -155,19 +155,7 @@ def build_inputs_from_plan(plan_id: int) -> Dict:
             # Just trust the semester_number as given
             allowed_semesters[c.code].append(off.semester_number)
 
-    # If there are no offerings at all, or some courses have no offerings,
-    # allow them in all semesters 1..total_semesters.
-    any_offerings = any(allowed_semesters[c] for c in allowed_semesters)
-    if not any_offerings:
-        # nothing defined at all → everything allowed everywhere
-        for c in courses:
-            allowed_semesters[c] = list(range(1, total_semesters + 1))
-    else:
-        # fill gaps only for courses that had no offerings
-        for c in courses:
-            if not allowed_semesters[c]:
-                allowed_semesters[c] = list(range(1, total_semesters + 1))
-
+    # No offerings
     # Sort & deduplicate for sanity
     for code in allowed_semesters:
         allowed_semesters[code] = sorted(set(allowed_semesters[code]))

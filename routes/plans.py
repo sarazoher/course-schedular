@@ -101,15 +101,19 @@ def plan_settings(plan_id: int):
         db.session.commit()
 
     if request.method == "POST":
-        # ---- plan structure (optional): years × semesters per year ----
+        # ---- plan structure (optional): labels only ----
         years_raw = (request.form.get("years") or "").strip()
         semesters_per_year_raw = (request.form.get("semesters_per_year") or "").strip()
 
         years_val = None
         semesters_per_year_val = None
 
-        # If both are provided, compute total_semesters from them
-        if years_raw and semesters_per_year_raw:
+        if years_raw != "" or semesters_per_year_raw != "":
+            # If one is provided, require both (keeps it consistent)
+            if not years_raw or not semesters_per_year_raw:
+                flash("Plan structure requires both Years and Semesters per year (or leave both blank).", "error")
+                return redirect(url_for("main.plan_settings", plan_id=plan.id))
+
             try:
                 years_val = int(years_raw)
                 semesters_per_year_val = int(semesters_per_year_raw)
@@ -125,16 +129,13 @@ def plan_settings(plan_id: int):
                 flash("Semesters per year must be between 1 and 6.", "error")
                 return redirect(url_for("main.plan_settings", plan_id=plan.id))
 
-            total_semesters_val = years_val * semesters_per_year_val
-
-        # --- total semesters (manual fallback) ---
-        else:
-            total_semesters_raw = (request.form.get("total_semesters") or "").strip()
-            try:
-                total_semesters_val = int(total_semesters_raw)
-            except ValueError:
-                flash("Total semesters must be a whole number.", "error")
-                return redirect(url_for("main.plan_settings", plan_id=plan.id))
+        # ---- total semesters (solver bound; always explicit) ----
+        total_semesters_raw = (request.form.get("total_semesters") or "").strip()
+        try:
+            total_semesters_val = int(total_semesters_raw)
+        except ValueError:
+            flash("Total semesters must be a whole number.", "error")
+            return redirect(url_for("main.plan_settings", plan_id=plan.id))
 
         # Validate total semesters regardless of source
         if total_semesters_val < 1 or total_semesters_val > 20:
