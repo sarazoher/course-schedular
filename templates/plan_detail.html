@@ -29,6 +29,15 @@
         Solve plan
       </button>
     </form>
+
+    <form method="POST"
+          action="{{ url_for('main.delete_plan', plan_id=plan.id) }}"
+          class="d-inline"
+          onsubmit="return confirm('Delete this plan? This cannot be undone.');">
+      <button type="submit" class="btn btn-outline-danger btn-sm">
+        Delete Plan
+      </button>
+    </form>
   </div>
 </div>
 
@@ -97,6 +106,20 @@
         method="POST"
         action="{{ url_for('main.add_course', plan_id=plan.id) }}"
       >
+      <div class="mb-3">
+        <label for="catalog_pick" class="form-label">Pick from catalog (optional)</label>
+        <select class="form-select" id="catalog_pick" name="catalog_pick">
+          <option value="">— Choose a canonical course —</option>
+          {% for c in catalog_courses %}
+            <option value="{{ c.code }}||{{ c.name }}||{{ c.credits }}">
+              {{ c.code }} — {{ c.name }} ({{ c.credits }})
+            </option>
+          {% endfor %}
+        </select>
+        <div class="form-text">
+          Selecting a catalog course will fill Code/Name/Credits below.
+        </div>
+      </div>
         <div class="row">
           <div class="col-md-3 mb-3">
             <label for="code" class="form-label">Code</label>
@@ -154,5 +177,27 @@
       </form>
     </div>
   </div>
+<script>
+  (function () {
+    const sel = document.getElementById("catalog_pick");
+    if (!sel) return;
+
+    sel.addEventListener("change", function () {
+      if (!this.value) return;
+      const parts = this.value.split("||");
+      if (parts.length !== 3) return;
+
+      const [code, name, credits] = parts;
+
+      const codeInput = document.getElementById("code");
+      const nameInput = document.getElementById("name");
+      const creditsInput = document.getElementById("credits");
+
+      if (codeInput) codeInput.value = code;
+      if (nameInput) nameInput.value = name;
+      if (creditsInput) creditsInput.value = credits;
+    });
+  })();
+</script>
 
 {% endblock %}

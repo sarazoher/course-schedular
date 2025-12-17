@@ -1,4 +1,4 @@
-from flask import render_template, redirect, url_for, request, abort, flash
+from flask import render_template, redirect, url_for, request, abort, flash, current_app
 from flask_login import login_required, current_user
 
 
@@ -6,7 +6,9 @@ from . import main_bp
 from models.course import Course
 from models.degree_plan import DegreePlan
 from models.plan_constraint import PlanConstraint
+from models.prerequisite import Prerequisite
 from extensions import db
+from utils.course_catalog import load_catalog
 
 from services.solver import build_inputs_from_plan, build_model
 from pulp import PULP_CBC_CMD, LpStatus
@@ -66,11 +68,17 @@ def view_plan(plan_id: int):
     if plan is None:
         abort(404)
     courses = Course.query.filter_by(degree_plan_id=plan.id).order_by(Course.id).all()
+    constraints = PlanConstraint.query.filter_by(degree_plan_id=plan.id).first()
+
+    catalog_dir = current_app.config.get("CATALOG_DIR")
+    catalog_courses = load_catalog(catalog_dir) if catalog_dir else []
 
     return render_template(
         "plan_detail.html", 
         plan = plan,
         courses = courses,
+        constraints=constraints,
+        catalog_courses=catalog_courses,
     )
 
 @main_bp.route("/plans/<int:plan_id>/settings", methods=["GET", "POST"])
@@ -182,3 +190,23 @@ def plan_settings(plan_id: int):
         plan=plan,
         constraints=pc,
     )
+
+@main_bp.post("/plans/<int:plan_id>/delete")
+@login_required
+def delete_plan(plan_id: int):
+    plan = DegreePlan.query.get_or_404(plan_id)
+    if plan.user_id != current_user.id:
+        abort(403)
+
+    has_courses = Course.query.filter_by(degree_plan_id=plan.id).first() is not None
+    has_prereqs = Prerequisite.query.filter_by(degree_plan_id=plan.id).first() is not None
+    has_constraints = PlanConstraint.query.filter_by(degree_plan_id=plan.id).first() is not None
+
+    if has_courses or has_prereqs or has_constraints:
+        flash("Delete blocked: remove courses/prerequisites/settings first.", "warning")
+        return redirect(url_for("main.view_plan", plan_id=plan.id))
+    db.session.delete(plan)
+    db.session.commit()
+    flash("Plan deleted.", "success")
+    return redirect(url_for("main.dashboard"))
+

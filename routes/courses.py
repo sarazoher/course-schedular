@@ -1,4 +1,4 @@
-from flask import render_template, redirect, url_for, request, abort, flash
+from flask import render_template, redirect, url_for, request, abort, flash, current_app
 from flask_login import login_required, current_user
 
 from . import main_bp
@@ -9,6 +9,7 @@ from models.prerequisite import Prerequisite
 from models.plan_constraint import PlanConstraint
 from extensions import db
 from utils.semesters import format_semester_label
+from utils.course_catalog import load_catalog
 
 @main_bp.route("/plans/<int:plan_id>/courses/add", methods=["POST"])
 @login_required
@@ -21,34 +22,30 @@ def add_course(plan_id: int):
     if plan is None:
         abort(404)
 
-    # 2) Normalize inputs
-    code = (request.form.get("code") or "").strip()
-    name = (request.form.get("name") or "").strip()
-    credits_raw = (request.form.get("credits") or "").strip()
+    # 2) Optional: override fields from catalog selection
+    pick = (request.form.get("catalog_pick") or "").strip()
+    if pick:
+        parts = pick.split("||")
+        if len(parts) == 3:
+            code = parts[0].strip()
+            name = parts[1].strip()
+            credits_raw = parts[2].strip()
+        else:
+            code = (request.form.get("code") or "").strip()
+            name = (request.form.get("name") or "").strip()
+            credits_raw = (request.form.get("credits") or "").strip()
+    else:
+        code = (request.form.get("code") or "").strip()
+        name = (request.form.get("name") or "").strip()
+        credits_raw = (request.form.get("credits") or "").strip()
+
     difficulty_raw = (request.form.get("difficulty") or "").strip()
 
     if not code or not name:
-        flash("Course and name are required.", "error")
+        flash("Course code and name are required.", "error")
         return redirect(url_for("main.view_plan", plan_id=plan.id))
 
-    # 3) Duplicate checks (inside this plan)
-    existing_code = Course.query.filter_by(
-        degree_plan_id=plan.id,
-        code=code,
-    ).first()
-    if existing_code:
-        flash("A course with that code already exists in this plan.", "error")
-        return redirect(url_for("main.view_plan", plan_id=plan.id))
-
-    existing_name = Course.query.filter_by(
-        degree_plan_id=plan.id,
-        name=name,
-    ).first()
-    if existing_name:
-        flash("A course with that name already exists in this plan.", "error")
-        return redirect(url_for("main.view_plan", plan_id=plan.id))
-
-    # 4) Credit validation
+    # 3) Credit validation (must happen BEFORE duplicate check, because we need credits_val)
     if not credits_raw:
         flash("Credits are required.", "error")
         return redirect(url_for("main.view_plan", plan_id=plan.id))
@@ -63,12 +60,18 @@ def add_course(plan_id: int):
         flash("Credits must be positive.", "error")
         return redirect(url_for("main.view_plan", plan_id=plan.id))
 
-    # allow integers or .5 values: 1, 1.5, 2, 2.5, ...
     if not (credits_val * 2).is_integer():
         flash("Credits must be an integer OR end with .5", "error")
         return redirect(url_for("main.view_plan", plan_id=plan.id))
 
-    credits = credits_val   # this is what we store/use below
+    # 4) Duplicate check: Duplicate check: enforce uniqueness by course CODE within the plan
+    existing = Course.query.filter_by(
+        degree_plan_id=plan.id,
+        code=code,
+    ).first()
+    if existing:
+        flash(f"Course {code} already exists in this plan.", "error")
+        return redirect(url_for("main.view_plan", plan_id=plan.id))
 
 
     # 5) Difficulty (optional)
@@ -86,13 +89,12 @@ def add_course(plan_id: int):
 
         difficulty = diff_val
 
-    
     # 6) Create and save the course
     course = Course(
         degree_plan_id=plan.id,
         code=code,
         name=name,
-        credits=credits,
+        credits=credits_val,
         difficulty=difficulty,
     )
     db.session.add(course)
