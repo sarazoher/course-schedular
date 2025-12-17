@@ -7,5 +7,4 @@ main_bp = Blueprint("main", __name__)
 from . import plans      # noqa: F401
 from . import courses    # noqa: F401
 from . import solver_routes     # noqa: F401
-from . import debug      # noqa: F401
 
