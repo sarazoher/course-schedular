@@ -203,7 +203,7 @@ def delete_plan(plan_id: int):
     has_constraints = PlanConstraint.query.filter_by(degree_plan_id=plan.id).first() is not None
 
     if has_courses or has_prereqs or has_constraints:
-        flash("Delete blocked: remove courses/prerequisites/settings first.", "warning")
+        flash("Delete blocked: delete all courses first (and any prerequisites/settings).", "warning")
         return redirect(url_for("main.view_plan", plan_id=plan.id))
     db.session.delete(plan)
     db.session.commit()

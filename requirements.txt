@@ -1,17 +1,29 @@
-blinker==1.9.0
-click==8.1.8
+# --- Core web app ---
 Flask==3.1.2
 Flask-Login==0.6.3
 Flask-SQLAlchemy==3.1.1
 Flask-WTF==1.2.2
-importlib_metadata==8.7.0
-itsdangerous==2.2.0
-Jinja2==3.1.6
-MarkupSafe==3.0.3
 python-dotenv==1.2.1
-SQLAlchemy==2.0.44
-typing_extensions==4.15.0
-Werkzeug==3.1.3
-WTForms==3.2.1
-zipp==3.23.0
+
+# --- Database migrations ---
+Flask-Migrate==4.0.7
+Alembic==1.14.0
+
+# --- Auth/security helpers ---
+Flask-Bcrypt==1.0.1
+
+# --- Solver ---
 PuLP==3.3.0
+
+# --- Importing catalog files (Excel/CSV) ---
+pandas==2.2.3
+openpyxl==3.1.5
+
+# --- Production server (Render/Heroku-like deployments) ---
+gunicorn==23.0.0
+
+
+# Future note for me to remember :)
+# networkx -  graph algorithms
+# ortools - replace/augment PuLP/CBC
+# psycopg2-binary - replace/augment PuLP/CBC
