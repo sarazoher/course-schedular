@@ -1,0 +1,120 @@
+/* ==============================
+   Global layout tweaks
+   ============================== */
+
+body {
+  background-color: #f8f9fb;
+  font-size: 0.95rem;
+}
+
+/* Keep content readable on large screens */
+.container {
+  max-width: 1100px;
+}
+
+/* ==============================
+   Cards
+   ============================== */
+
+.card {
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+.card + .card {
+  margin-top: 1rem;
+}
+
+/* ==============================
+   Headings
+   ============================== */
+
+h1, h2, h3 {
+  font-weight: 600;
+}
+
+h2 {
+  margin-bottom: 0.75rem;
+}
+
+/* ==============================
+   Buttons
+   ============================== */
+
+.btn {
+  border-radius: 6px;
+}
+
+.btn-sm {
+  padding: 0.25rem 0.6rem;
+}
+
+/* Fix “buttons bleeding into each other” feeling */
+.btn + .btn,
+.btn + form,
+form + .btn {
+  margin-left: 0.4rem;
+}
+
+/* ==============================
+   Tables (solver output, courses)
+   ============================== */
+
+.table {
+  background-color: #ffffff;
+}
+
+.table th {
+  font-weight: 600;
+  color: #374151;
+}
+
+/* ==============================
+   Badges / solver status
+   ============================== */
+
+
+.badge {
+  font-size: 0.75rem;
+  padding: 0.4em 0.6em;
+}
+
+.solver-status {
+  letter-spacing: 0.02em;
+}
+
+/* ==============================
+   Muted helper text
+   ============================== */
+
+.text-muted {
+  color: #6b7280 !important;
+}
+
+/* ==============================
+   Solver status badges
+   ============================== */
+
+.solver-status {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* Optimal = green */
+.solver-ok {
+  background-color: #16a34a; /* calm green */
+  color: white;
+}
+
+/* Infeasible / error = red */
+.solver-bad {
+  background-color: #dc2626;
+  color: white;
+}
+
+/* Anything else */
+.solver-unknown {
+  background-color: #6b7280;
+  color: white;
+}

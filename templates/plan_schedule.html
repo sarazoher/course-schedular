@@ -27,7 +27,14 @@
 
   <p class="mb-3">
     Solver status:
-    <span class="badge bg-secondary">{{ status }}</span>
+    <span
+      class="badge solver-status
+         {% if status == 'Optimal' %}solver-ok
+         {% elif status == 'Infeasible' %}solver-bad
+         {% else %}solver-unknown{% endif %}"
+    > 
+      {{ status }}
+    </span>
   </p>
 
   {% set hints = infeasible_hints | default([]) %}
