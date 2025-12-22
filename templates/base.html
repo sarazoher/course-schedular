@@ -10,34 +10,50 @@
       href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
       rel="stylesheet"
     >
+
     <!-- CSS Styling -->
     <link
       rel="stylesheet"
       href="{{ url_for('static', filename='css/main.css') }}"
     >
   </head>
+
   <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+    <nav class="navbar navbar-expand-md navbar-dark bg-dark mb-4">
       <div class="container">
         <a class="navbar-brand" href="/">Course Scheduler</a>
-        <div class="collapse navbar-collapse">
+
+        <!-- Hamburger button (shows on small screens) -->
+        <button
+          class="navbar-toggler"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#navbarNav"
+          aria-controls="navbarNav"
+          aria-expanded="false"
+          aria-label="Toggle navigation"
+        >
+          <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <!-- Collapsible links -->
+        <div class="collapse navbar-collapse" id="navbarNav">
           <ul class="navbar-nav ms-auto">
-              {% if current_user.is_authenticated %}
-    <li class="nav-item">
-      <a class="nav-link" href="{{ url_for('main.dashboard') }}">Dashboard</a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link" href="{{ url_for('auth.logout') }}">Logout</a>
-    </li>
-  {% else %}
-    <li class="nav-item">
-      <a class="nav-link" href="{{ url_for('auth.login') }}">Login</a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link" href="{{ url_for('auth.register') }}">Register</a>
-    </li>
-  {% endif %}
-            
+            {% if current_user.is_authenticated %}
+              <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('main.dashboard') }}">Dashboard</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('auth.logout') }}">Logout</a>
+              </li>
+            {% else %}
+              <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('auth.login') }}">Login</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('auth.register') }}">Register</a>
+              </li>
+            {% endif %}
           </ul>
         </div>
       </div>
@@ -73,11 +89,12 @@
     <script
       src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js">
     </script>
-<script>
-  document.addEventListener("DOMContentLoaded", function () {
-    const triggers = document.querySelectorAll('[data-bs-toggle="popover"]');
-    triggers.forEach((el) => new bootstrap.Popover(el));
-  });
-</script>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        const triggers = document.querySelectorAll('[data-bs-toggle="popover"]');
+        triggers.forEach((el) => new bootstrap.Popover(el));
+      });
+    </script>
   </body>
 </html>
