@@ -4,9 +4,11 @@ from typing import Union, List
 
 @dataclass(frozen=True)
 class ReqLeaf:
-    # store course code if known; otherwise token string
+    # For internal courses, 'code' is a resolved catalog course code.
+    # For external/unresolved tokens, 'code' is None and 'kind' captures the classification.
     code: str | None
     raw: str
+    kind: str = "internal" # "internal" | "external" | "unresolved"
 
 @dataclass(frozen=True)
 class ReqAnd:
