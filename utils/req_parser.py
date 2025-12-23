@@ -20,6 +20,8 @@ def parse_req_text(text: str, resolve) -> Req | None:
         return None
     text = normalize_text(text)
 
+    # --- Normalize known tokenization artifacts BEFOREE parsing ---
+
     # OR level
     if "/" in text:
         parts = split_top(text, "/")

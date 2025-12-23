@@ -64,3 +64,6 @@ Thumbs.db
 # ------------------------
 *.swp
 *.swo
+
+# Private course catalog data
+data_catalog/
