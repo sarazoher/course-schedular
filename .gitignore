@@ -67,8 +67,5 @@ Thumbs.db
 
 # Private course catalog data
 data_catalog/
-
-# Private catalog data
-data_catalog/
 *.xlsx
 *.xls
