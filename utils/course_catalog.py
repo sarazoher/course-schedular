@@ -158,14 +158,8 @@ def build_resolver(catalog_courses):
         if code:
             return code, token
 
-        if is_external_token(t):
-            # external prereq   not a degree course to schedule (such as "אנגלית מתקדמים ב")
-            return None, token
         
         return None, token
 
     return resolve
 
-def is_external_token(token: str) -> bool:
-    t = normalize_name_key(token)
-    return "אנגלית" in t or "עברית" in t or "פטור" in t
