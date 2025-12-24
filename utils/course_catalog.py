@@ -51,7 +51,7 @@ def load_catalog(directory: str) -> list[CatalogCourse]:
             # Skip unreadable Excel files
             print(f"[catalog] Skipping {f.name}: {e}")
 
-    # Load CSV files (NOT nested under the xlsx loop)
+    # Load CSV files
     for f in p.glob("*.csv"):
         try:
             items.extend(_load_csv_catalog(f))
@@ -149,57 +149,58 @@ def build_resolver(
     by_code = {c.code: c for c in catalog_courses}
     by_name = {normalize_name_key(c.name): c.code for c in catalog_courses}
 
-    # Normalize alias keys once for stable matching
+    # Normalize alias keys + values once for stable matching
+    # - keys: how tokens appear
+    # - values: can be a catalog code OR a catalog name
     alias_map_norm: dict[str, str] = {}
     if alias_rules:
         for a, canon in alias_rules.alias_to_canonical.items():
-            alias_map_norm[normalize_name_key(a)] = (canon or "").strip()
+            a_norm = normalize_name_key(a)
+            canon_norm = normalize_name_key(canon)
+            if a_norm and canon_norm:
+                alias_map_norm[a_norm] = canon_norm
 
     def resolve(token: str):
+        raw = token
         t = normalize_name_key(token)
 
         # 0) Alias mapping (before any other resolution)
-        # Alias can point to a NAME, fallback -> CODE.
         canon = alias_map_norm.get(t)
         if canon:
-            canon_norm = normalize_name_key(canon)
+            # If canonical is a course code, resolve by code
+            if canon in by_code:
+                return canon, raw, "internal"
 
-            # If canonical looks like a pure code, treat as code
-            if canon_norm.isdigit():
-                return (
-                    (canon_norm if canon_norm in by_code else None),
-                    token,
-                    ("internal" if canon_norm in by_code else "unresolved"),
-                )
+            # If canonical looks numeric but isn't in catalog, treat as unresolved (safe)
+            if canon.isdigit() and len(canon) >= 5:
+                return None, raw, "unresolved"
 
             # Otherwise treat canonical as a course name
-            code = by_name.get(canon_norm)
+            code = by_name.get(canon)
             if code:
-                return code, token, "internal"
-            return None, token, "unresolved"
+                return code, raw, "internal"
+            return None, raw, "unresolved"
 
         # 1) Direct code match
         if t in by_code:
-            return t, token, "internal"
+            return t, raw, "internal"
 
         # 2) Numeric-looking code that isn't in catalog
         if t.isdigit() and len(t) >= 5:
-            return None, token, "unresolved"
+            return None, raw, "unresolved"
 
         # 3) Exact name match
         code = by_name.get(t)
         if code:
-            return code, token, "internal"
+            return code, raw, "internal"
 
         # 4) External requirement
         if external_rules and is_external_token(t, external_rules):
-            return None, token, "external"
+            return None, raw, "external"
 
-        return None, token, "unresolved"
+        return None, raw, "unresolved"
 
     return resolve
-
-    print("CHECK EXTERNAL:", repr(t))
 
 
 def is_external_token(token: str, rules: ExternalRules) -> bool:

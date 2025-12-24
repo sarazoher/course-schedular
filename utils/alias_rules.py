@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 import csv
-
+import io 
 
 @dataclass(frozen=True)
 class AliasRules:
@@ -25,9 +25,27 @@ def load_aliases_csv(path: str) -> AliasRules:
     if not p.exists():
         return AliasRules(alias_to_canonical=mapping)
 
-    with p.open("r", encoding="utf-8", newline="") as f:
+    # Read and pre-filter lines so DictReader sees a real header row.
+    raw_lines = p.read_text(encoding="utf-8").splitlines()
+    cleaned_lines: list[str] = []
+    for line in raw_lines:
+        s = line.strip()
+        if not s:
+            continue
+        if s.startswith("#"):
+            continue
+        cleaned_lines.append(line)
+
+    if not cleaned_lines:
+        return AliasRules(alias_to_canonical=mapping)
+
+    with io.StringIO("\n".join(cleaned_lines)) as f:
         reader = csv.DictReader(f)
-        # Expected headers: alias, canonical, notes (notes optional)
+
+        # Normalize fieldnames (strip whitespace, lower-case)
+        if reader.fieldnames:
+            reader.fieldnames = [fn.strip().lower() for fn in reader.fieldnames]
+
         for row in reader:
             if not row:
                 continue
