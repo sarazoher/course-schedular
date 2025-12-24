@@ -9,7 +9,6 @@ from models.prerequisite import Prerequisite
 from models.plan_constraint import PlanConstraint
 from extensions import db
 from utils.semesters import format_semester_label
-from utils.course_catalog import load_catalog
 
 @main_bp.route("/plans/<int:plan_id>/courses/add", methods=["POST"])
 @login_required

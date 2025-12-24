@@ -1,15 +1,14 @@
-from flask import render_template, redirect, url_for, request, abort, flash, current_app
-from flask_login import login_required, current_user
-
+from flask import render_template, redirect, url_for, request, abort, flash
+from flask_login import current_user, login_required
 
 from . import main_bp
 from models.course import Course
+from models.catalog_course import CatalogCourse
 from models.degree_plan import DegreePlan
 from models.plan_constraint import PlanConstraint
 from models.prerequisite import Prerequisite
 from models.plan_solution import PlanSolution
 from extensions import db
-from utils.course_catalog import load_catalog
 
 from services.solver import build_inputs_from_plan, build_model
 from pulp import PULP_CBC_CMD, LpStatus
@@ -78,8 +77,8 @@ def view_plan(plan_id: int):
         .first()
         )
     
-    catalog_dir = current_app.config.get("CATALOG_DIR")
-    catalog_courses = load_catalog(catalog_dir) if catalog_dir else []
+    # Phase 2: read-only dropdown from DB catalog
+    catalog_courses = CatalogCourse.query.order_by(CatalogCourse.code.asc()).all()
 
     return render_template(
         "plan_detail.html", 
