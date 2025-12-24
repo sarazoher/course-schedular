@@ -285,6 +285,12 @@ def delete_course(plan_id: int, course_id: int):
         prereq_course_id=course.id,
     ).delete()
 
+    # Phase 2 bridge: remove the PlanCourse membership too
+    PlanCourse.query.filter_by(
+        plan_id=plan.id,
+        legacy_course_id=course.id,
+    ).delete()
+
     # 4) Delete the course itself
     db.session.delete(course)
     db.session.commit()
