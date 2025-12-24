@@ -1,14 +1,46 @@
-from flask import render_template, redirect, url_for, request, abort, flash, current_app
+from flask import render_template, redirect, url_for, request, abort, flash
 from flask_login import login_required, current_user
 
 from . import main_bp
 from models.degree_plan import DegreePlan
 from models.course import Course
+from models.catalog_course import CatalogCourse
 from models.course_offering import CourseOffering
 from models.prerequisite import Prerequisite
 from models.plan_constraint import PlanConstraint
 from extensions import db
 from utils.semesters import format_semester_label
+
+
+def _upsert_catalog_course(*, code: str, name: str, credits: float) -> None:
+    """Ensure the global catalog has this course (MVV).
+
+    Phase 2 rule:
+    - Any course added manually (or via dropdown pick) should exist in CatalogCourse.
+    - If it already exists, update name/credits to match the latest user input.
+    """
+    existing = CatalogCourse.query.filter_by(code=code).first()
+    if existing:
+        changed = False
+        if existing.name != name:
+            existing.name = name
+            changed = True
+        if existing.credits != credits:
+            existing.credits = credits
+            changed = True
+        if changed:
+            db.session.commit()
+        return
+
+    db.session.add(
+        CatalogCourse(
+            code=code,
+            name=name,
+            credits=credits,
+            prereq_text=None,
+        )
+    )
+    db.session.commit()
 
 @main_bp.route("/plans/<int:plan_id>/courses/add", methods=["POST"])
 @login_required
@@ -71,6 +103,9 @@ def add_course(plan_id: int):
     if existing:
         flash(f"Course {code} already exists in this plan.", "error")
         return redirect(url_for("main.view_plan", plan_id=plan.id))
+
+    # Upsert to global catalog (DB) as soon as a course is added.
+    _upsert_catalog_course(code=code, name=name, credits=credits_val)
 
 
     # 5) Difficulty (optional)
