@@ -1,18 +1,109 @@
-# routes/solver_routes.py
+"""Solver endpoints
 
+- POST /solve stores the latest solver output as a PlanSolution row
+- GET  /schedule renders the latest saved solution (no re-solve)
+"""
+
+import json
+from typing import Optional, Any
 from flask import render_template, redirect, url_for, request, abort, flash
 from flask_login import login_required, current_user
-
 from pulp import LpStatus, PULP_CBC_CMD
 
 from . import main_bp
 from models.degree_plan import DegreePlan
 from models.plan_constraint import PlanConstraint
+from models.plan_solution import PlanSolution
 from services.solver import build_inputs_from_plan, build_model
 from extensions import db
 from utils.semesters import format_semester_label
 from services.validation import validate_inputs_before_solve
 
+
+def _save_latest_solution(
+    *,
+    plan_id: int,
+    status: str,
+    semesters: list[int],
+    semester_labels: dict[int, str],
+    courses_by_semester: dict[int, list[dict[str, Any]]],
+    infeasible_hints: Optional[list[str]],
+    objective_value: Optional[float] = None,
+    warnings: Optional[list[str]] = None,
+    meta: Optional[dict[str, Any]] = None,
+) -> None:
+
+
+    """Persist the latest solver output for a plan.
+
+    MVV policy: keep exactly ONE latest solution per plan.
+    (Delete old rows and insert one fresh snapshot.)
+    """
+    PlanSolution.query.filter_by(plan_id=plan_id).delete()
+
+    # JSON forces dict keys to strings, so store keys as strings explicitly.
+    payload = {
+        "semesters": semesters,
+        "semester_labels": {str(k): v for k, v in (semester_labels or {}).items()},
+        "courses_by_semester": {str(k): v for k, v in (courses_by_semester or {}).items()},
+        "infeasible_hints": infeasible_hints or [],
+    }
+
+    sol = PlanSolution(
+        plan_id=plan_id,
+        status=status,
+        objective_value=objective_value,
+        solution_json=json.dumps(payload, ensure_ascii=False),
+        warnings_json=json.dumps(warnings or [], ensure_ascii=False),
+        meta_json=json.dumps(meta or {}, ensure_ascii=False),
+    )
+
+    db.session.add(sol)
+    db.session.commit()
+
+
+@main_bp.get("/plans/<int:plan_id>/schedule")
+@login_required
+def view_saved_schedule(plan_id: int):
+    """Render the latest saved schedule for a plan (no re-solve)."""
+
+    plan = DegreePlan.query.filter_by(
+        id=plan_id,
+        user_id=current_user.id,
+    ).first()
+    if plan is None:
+        abort(404)
+
+    latest = (
+        PlanSolution.query
+        .filter_by(plan_id=plan.id)
+        .order_by(PlanSolution.created_at.desc())
+        .first()
+    )
+
+    if latest is None or not latest.solution_json:
+        flash("No saved schedule for this plan yet. Click 'Solve plan' first.", "info")
+        return redirect(url_for("main.view_plan", plan_id=plan.id))
+
+    try:
+        payload = json.loads(latest.solution_json)
+    except Exception:
+        flash("Saved schedule data is corrupted. Please re-solve the plan.", "error")
+        return redirect(url_for("main.view_plan", plan_id=plan.id))
+
+    # Convert keys back to ints for template logic.
+    semester_labels = {int(k): v for k, v in (payload.get("semester_labels") or {}).items()}
+    courses_by_semester = {int(k): v for k, v in (payload.get("courses_by_semester") or {}).items()}
+
+    return render_template(
+        "plan_schedule.html",
+        plan=plan,
+        status=latest.status,
+        semesters=payload.get("semesters", []),
+        semester_labels=semester_labels,
+        courses_by_semester=courses_by_semester,
+        infeasible_hints=payload.get("infeasible_hints", []),
+    )
 
 @main_bp.route("/plans/<int:plan_id>/solve", methods=["GET", "POST"])
 @login_required
@@ -49,20 +140,17 @@ def solve_plan(plan_id: int):
     # Pre-solve Validation
     precheck_hints = validate_inputs_before_solve(inputs)
     if precheck_hints:
-        return render_template(
-            "plan_schedule.html",
-            plan=plan,
+        _save_latest_solution(
+            plan_id=plan_id,
             status="Infeasible",
             semesters=[],
             semester_labels={},
             courses_by_semester={},
             infeasible_hints=precheck_hints,
+            meta={"phase": "precheck"},
         )
+        return redirect(url_for("main.view_saved_schedule", plan_id=plan_id))
     
-    # print("COURSES:", inputs["courses"])
-    # print("ALLOWED:", inputs["allowed_semesters"])
-
-
     # Solver flags come from PlanConstraint (Plan settings)
     pc = PlanConstraint.query.filter_by(degree_plan_id=plan.id).first()
     # default behavior if settings row is missing
@@ -218,17 +306,28 @@ def solve_plan(plan_id: int):
             courses_by_semester = {s: courses_by_semester.get(s, []) for s in semesters}
             semester_labels = {s: semester_labels.get(s, f"Semester {s}") for s in semesters}
 
-    #print("STATUS:", status)
-    #print("SEMESTERS:", semesters)
-    #print("COURSES_BY_SEMESTER:", courses_by_semester)
 
+    # Persist the latest solver run (MVV) and redirect to the saved schedule view.
+    objective_value = None
+    try:
+        objective_value = float(model.objective.value()) if model.objective is not None else None
+    except Exception:
+        objective_value = None
 
-    return render_template(
-        "plan_schedule.html",
-        plan=plan,
+    _save_latest_solution(
+        plan_id=plan.id,
         status=status,
         semesters=semesters,
         semester_labels=semester_labels,
         courses_by_semester=courses_by_semester,
         infeasible_hints=infeasible_hints,
-    )
+        objective_value=objective_value,
+        meta={
+            "use_prereqs": use_prereqs,
+            "use_credit_limits": use_credit_limits,
+            "minimize_last_semester": minimize_last_semester,
+        },
+    )     
+
+    return redirect(url_for("main.view_saved_schedule", plan_id=plan.id))
+    
