@@ -5,6 +5,7 @@ from . import main_bp
 from models.degree_plan import DegreePlan
 from models.course import Course
 from models.catalog_course import CatalogCourse
+from models.plan_course import PlanCourse
 from models.course_offering import CourseOffering
 from models.prerequisite import Prerequisite
 from models.plan_constraint import PlanConstraint
@@ -45,7 +46,7 @@ def _upsert_catalog_course(*, code: str, name: str, credits: float) -> None:
 @main_bp.route("/plans/<int:plan_id>/courses/add", methods=["POST"])
 @login_required
 def add_course(plan_id: int):
-    # 1) Ensure plan belongs to current user
+    # Ensure plan belongs to current user
     plan = DegreePlan.query.filter_by(
         id=plan_id,
         user_id=current_user.id,
@@ -53,7 +54,7 @@ def add_course(plan_id: int):
     if plan is None:
         abort(404)
 
-    # 2) Optional: override fields from catalog selection
+    # Override fields from catalog selection
     pick = (request.form.get("catalog_pick") or "").strip()
     if pick:
         parts = pick.split("||")
@@ -76,7 +77,7 @@ def add_course(plan_id: int):
         flash("Course code and name are required.", "error")
         return redirect(url_for("main.view_plan", plan_id=plan.id))
 
-    # 3) Credit validation (must happen BEFORE duplicate check, because we need credits_val)
+    # Credit validation (must happen BEFORE duplicate check, because we need credits_val)
     if not credits_raw:
         flash("Credits are required.", "error")
         return redirect(url_for("main.view_plan", plan_id=plan.id))
@@ -95,20 +96,23 @@ def add_course(plan_id: int):
         flash("Credits must be an integer OR end with .5", "error")
         return redirect(url_for("main.view_plan", plan_id=plan.id))
 
-    # 4) Duplicate check: Duplicate check: enforce uniqueness by course CODE within the plan
-    existing = Course.query.filter_by(
-        degree_plan_id=plan.id,
-        code=code,
-    ).first()
-    if existing:
-        flash(f"Course {code} already exists in this plan.", "error")
-        return redirect(url_for("main.view_plan", plan_id=plan.id))
-
     # Upsert to global catalog (DB) as soon as a course is added.
     _upsert_catalog_course(code=code, name=name, credits=credits_val)
 
+    catalog = CatalogCourse.query.filter_by(code=code).first()
+    if catalog is None:
+        flash("Catalog insert failed. Please try again.", "error")
+        return redirect(url_for("main.view_plan", plan_id=plan.id))
 
-    # 5) Difficulty (optional)
+    already = PlanCourse.query.filter_by(
+        plan_id=plan.id,
+        catalog_course_id=catalog.id,
+    ).first()
+    if already:
+        flash(f"Course {code} already exists in this plan.", "error")
+        return redirect(url_for("main.view_plan", plan_id=plan.id))
+
+    # Difficulty (optional)
     difficulty = None
     if difficulty_raw:
         try:
@@ -123,15 +127,27 @@ def add_course(plan_id: int):
 
         difficulty = diff_val
 
-    # 6) Create and save the course
-    course = Course(
-        degree_plan_id=plan.id,
-        code=code,
-        name=name,
-        credits=credits_val,
-        difficulty=difficulty,
+    # Create legacy Course (bridge) if not exists
+    legacy = Course.query.filter_by(degree_plan_id=plan.id, code=code).first()
+    if legacy is None:
+        legacy = Course(
+            degree_plan_id=plan.id,
+            code=code,
+            name=name,
+            credits=credits_val,
+            difficulty=difficulty,
+        )
+        db.session.add(legacy)
+        db.session.flush()  # ensures legacy.id is available without committing yet
+
+    # Create PlanCourse membership (new truth)
+    pc = PlanCourse(
+        plan_id=plan.id,
+        catalog_course_id=catalog.id,
+        legacy_course_id=legacy.id,
+        status="planned",
     )
-    db.session.add(course)
+    db.session.add(pc)
     db.session.commit()
 
     flash("Course added.", "success")

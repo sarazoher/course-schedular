@@ -34,7 +34,7 @@
       <a
         href="{{ url_for('main.view_saved_schedule', plan_id=plan.id) }}"
         class="btn btn-outline-primary btn-sm me-2"
-        title="Last saved: {{ lastest_solution.created_at }}"
+        title="Last saved: {{ latest_solution.created_at }}"
       >
         View latest schedule
       </a>
@@ -54,29 +54,26 @@
 
   <h4 class="mt-4 mb-2">Courses in this plan</h4>
 
-  {% if courses %}
+  {% if plan_courses %}
     <div class="card mb-4">
       <div class="card-header d-flex justify-content-between align-items-center">
         <span>Courses</span>
-        <span class="badge bg-secondary">{{ courses|length }}</span>
+        <span class="badge bg-secondary">{{ plan_courses|length }}</span>
       </div>
 
       <ul class="list-group list-group-flush">
-        {% for course in courses %}
+        {% for pc in plan_courses %}
           <li class="list-group-item d-flex justify-content-between align-items-center">
             <div>
               <a
-                href="{{ url_for('main.course_detail', plan_id=plan.id, course_id=course.id) }}"
+                href="{{ url_for('main.course_detail', plan_id=plan.id, course_id=pc.legacy_course_id) }}"
                 class="fw-semibold text-decoration-none"
               >
-                {{ course.code }} — {{ course.name }}
+                {{ pc.catalog_course.code }} — {{ pc.catalog_course.name }}
               </a>
 
               <div class="small text-muted">
-                {{ course.credits }} credits
-                {% if course.difficulty is not none %}
-                  • Difficulty: {{ course.difficulty }}
-                {% endif %}
+                {{ pc.catalog_course.credits }} credits
               </div>
             </div>
 
@@ -84,7 +81,7 @@
                           <a
                 href="{{ url_for('main.course_detail',
                                  plan_id=plan.id,
-                                 course_id=course.id) }}"
+                                 course_id=pc.legacy_course_id) }}"
                 class="btn btn-outline-secondary btn-sm"
               >
                 Edit &amp; details
@@ -94,7 +91,7 @@
                 method="POST"
                 action="{{ url_for('main.delete_course',
                                    plan_id=plan.id,
-                                   course_id=course.id) }}"
+                                   course_id=pc.legacy_course_id) }}"
                 onsubmit="return confirm('Delete this course?');"
               >
                 <button type="submit" class="btn btn-outline-danger btn-sm">
