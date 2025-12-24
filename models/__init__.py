@@ -6,6 +6,4 @@ from .course_offering import CourseOffering
 from .plan_constraint import PlanConstraint
 from .catalog_course import CatalogCourse
 from .plan_course import PlanCourse
-
-# for later we will add:
-# from .plan_solution import PlanSolution
+from .plan_solution import PlanSolution
