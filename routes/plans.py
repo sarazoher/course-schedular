@@ -7,6 +7,7 @@ from models.course import Course
 from models.degree_plan import DegreePlan
 from models.plan_constraint import PlanConstraint
 from models.prerequisite import Prerequisite
+from models.plan_solution import PlanSolution
 from extensions import db
 from utils.course_catalog import load_catalog
 
@@ -70,6 +71,13 @@ def view_plan(plan_id: int):
     courses = Course.query.filter_by(degree_plan_id=plan.id).order_by(Course.id).all()
     constraints = PlanConstraint.query.filter_by(degree_plan_id=plan.id).first()
 
+    latest_solution = (
+        PlanSolution.query
+        .filter_by(plan_id=plan_id)
+        .order_by(PlanSolution.created_at.desc())
+        .first()
+        )
+    
     catalog_dir = current_app.config.get("CATALOG_DIR")
     catalog_courses = load_catalog(catalog_dir) if catalog_dir else []
 
@@ -79,6 +87,7 @@ def view_plan(plan_id: int):
         courses = courses,
         constraints=constraints,
         catalog_courses=catalog_courses,
+        latest_solution=latest_solution,
     )
 
 @main_bp.route("/plans/<int:plan_id>/settings", methods=["GET", "POST"])

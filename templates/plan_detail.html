@@ -30,6 +30,16 @@
       </button>
     </form>
 
+    {% if latest_solution %}
+      <a
+        href="{{ url_for('main.view_saved_schedule', plan_id=plan.id) }}"
+        class="btn btn-outline-primary btn-sm me-2"
+        title="Last saved: {{ lastest_solution.created_at }}"
+      >
+        View latest schedule
+      </a>
+    {% endif %}
+
     <form method="POST"
           action="{{ url_for('main.delete_plan', plan_id=plan.id) }}"
           class="d-inline"

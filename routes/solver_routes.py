@@ -32,8 +32,6 @@ def _save_latest_solution(
     warnings: Optional[list[str]] = None,
     meta: Optional[dict[str, Any]] = None,
 ) -> None:
-
-
     """Persist the latest solver output for a plan.
 
     MVV policy: keep exactly ONE latest solution per plan.
