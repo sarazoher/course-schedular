@@ -1,0 +1,11 @@
+from .user import User
+from .degree_plan import DegreePlan
+from .course import Course
+from .prerequisite import Prerequisite
+from .course_offering import CourseOffering
+from .plan_constraint import PlanConstraint
+from .catalog_course import CatalogCourse
+
+# for later we will add:
+# from .plan_course import PlanCourse
+# from .plan_solution import PlanSolution
