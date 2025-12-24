@@ -2,8 +2,8 @@ from flask import render_template, redirect, url_for, request, abort, flash
 from flask_login import current_user, login_required
 
 from . import main_bp
-from models.course import Course
 from models.catalog_course import CatalogCourse
+from models.plan_course import PlanCourse
 from models.degree_plan import DegreePlan
 from models.plan_constraint import PlanConstraint
 from models.prerequisite import Prerequisite
@@ -67,7 +67,14 @@ def view_plan(plan_id: int):
     ).first()
     if plan is None:
         abort(404)
-    courses = Course.query.filter_by(degree_plan_id=plan.id).order_by(Course.id).all()
+    # Plan course list now comes from PlanCourse (backed by CatalogCourse)
+    plan_courses = (
+        PlanCourse.query
+        .filter_by(plan_id=plan.id)
+        .join(CatalogCourse, PlanCourse.catalog_course_id == CatalogCourse.id)
+        .order_by(CatalogCourse.code.asc())
+        .all()
+    )
     constraints = PlanConstraint.query.filter_by(degree_plan_id=plan.id).first()
 
     latest_solution = (
@@ -83,7 +90,7 @@ def view_plan(plan_id: int):
     return render_template(
         "plan_detail.html", 
         plan = plan,
-        courses = courses,
+        plan_courses=plan_courses,
         constraints=constraints,
         catalog_courses=catalog_courses,
         latest_solution=latest_solution,

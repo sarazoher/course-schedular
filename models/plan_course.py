@@ -18,6 +18,14 @@ class PlanCourse(db.Model):
         nullable=False,
     )
 
+    # Temporary bridge to existing UI/routes that expect Course.id
+    legacy_course_id = db.Column(
+        db.Integer,
+        db.ForeignKey("course.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
     # Plan-specific state
     status = db.Column(db.String(32), default="planned", nullable=False)
 
@@ -27,6 +35,7 @@ class PlanCourse(db.Model):
     ))
 
     catalog_course = db.relationship("CatalogCourse")
-
+    legacy_course = db.relationship("Course")
+    
     def __repr__(self) -> str:
         return f"<PlanCourse plan={self.plan_id} catalog={self.catalog_course_id}>"
