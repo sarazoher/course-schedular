@@ -186,7 +186,7 @@ def edit_course(plan_id: int, course_id: int):
         # Credits validation
         if not credits_raw:
             flash("Credits are required.", "error")
-            return render_template(url_for("main.edit_course", plan_id=plan.id, course_id=course.id))
+            return redirect(url_for("main.edit_course", plan_id=plan.id, course_id=course.id))
         
         try:
             credits_val = float(credits_raw)
@@ -223,11 +223,30 @@ def edit_course(plan_id: int, course_id: int):
             flash("Another course with that code already exists in this plan.", "error")
             return redirect(url_for("main.edit_course", plan_id=plan.id, course_id=course.id))
 
-        # update course
+        # --- Phase 2 bridge: keep CatalogCourse + PlanCourse in sync with legacy Course edits ---
+
+        old_code = course.code
+
+        # Update legacy course
         course.code = code
         course.name = name
         course.credits = credits_val
         course.difficulty = difficulty_val
+
+        # Upsert/update global catalog
+        catalog = CatalogCourse.query.filter_by(code=code).first()
+        if catalog is None:
+            catalog = CatalogCourse(code=code, name=name, credits=credits_val, prereq_text=None)
+            db.session.add(catalog)
+        else:
+            catalog.name = name
+            catalog.credits = credits_val
+
+        # If code changed, update the PlanCourse link for this plan/course
+        if code != old_code:
+            pc = PlanCourse.query.filter_by(plan_id=plan.id, legacy_course_id=course.id).first()
+            if pc:
+                pc.catalog_course_id = catalog.id
 
         db.session.commit()
         flash("Course updated.", "success")
