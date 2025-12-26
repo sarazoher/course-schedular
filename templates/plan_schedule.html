@@ -37,6 +37,35 @@
     </span>
   </p>
 
+  {% set warnings_list = warnings | default([]) %}
+  {% set meta = meta | default({}) %}
+
+  <div class="card mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <span>Warnings</span>
+      <span class="badge bg-secondary">{{ warnings_list|length }}</span>
+    </div>
+
+    <div class="card-body small">
+      {% if warnings_list %}
+        <ul class="mb-0">
+          {% for w in warnings_list %}
+            {# Keep it generic: show best-effort fields #}
+            <li>
+              {% if w is mapping %}
+                {{ w.get("message") or w.get("detail") or w.get("type") or (w|string) }}
+              {% else %}
+                {{ w }}
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <div class="text-muted">No warnings.</div>
+      {% endif %}
+    </div>
+  </div>
+
   {% set hints = infeasible_hints | default([]) %}
 
   {% if status != 'Optimal' %}
@@ -85,15 +114,31 @@
               {% if bucket %}
                 {% for course in bucket %}
                   <li class="list-group-item">
-                    <strong>{{ course.code | default('') }}</strong>
-                    — {{ course.name | default('') }}<br>
-                    <small>
+                    <div class="d-flex justify-content-between align-items-start">
+                      <div>
+                        <strong>{{ course.code | default('') }}</strong>
+                        — {{ course.name | default('') }}
+                      </div>
+
+                      {% if optional_codes is defined and (course.code|string) in optional_codes %}
+                        <span class="badge bg-info text-dark">Optional</span>
+                      {% endif %}
+                    </div>
+
+                    <small class="text-muted">
                       Credits: {{ course.credits | default('') }}
                       {% if course.difficulty is not none and course.difficulty != '' %}
                         • Difficulty: {{ course.difficulty }}
                       {% endif %}
                     </small>
+
+                    {% if course.coreq_text %}
+                      <div class="small text-muted mt-1">
+                        <strong>Coreq (info):</strong> {{ course.coreq_text }}
+                      </div>
+                    {% endif %}
                   </li>
+
                 {% endfor %}
               {% else %}
                 <li class="list-group-item text-muted">

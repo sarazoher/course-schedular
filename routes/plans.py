@@ -1,3 +1,7 @@
+import json
+from pathlib import Path
+from config import Config
+
 from flask import render_template, redirect, url_for, request, abort, flash
 from flask_login import current_user, login_required
 
@@ -89,6 +93,18 @@ def view_plan(plan_id: int):
 
     meta = load_catalog_meta()
     meta_courses = meta.get("courses") or {}
+
+        # ---- Optional courses sidecar (UI-only, not in DB) ----
+    optional_codes: set[str] = set()
+    opt_path = Path(Config.CATALOG_DIR) / "optional_courses.json"
+    if opt_path.exists():
+        try:
+            data = json.loads(opt_path.read_text(encoding="utf-8"))
+            optional_codes = set(str(x) for x in (data.get("optional_codes") or []))
+        except Exception:
+            # Don't crash the page if config is malformed, treat as "no optionals"
+            optional_codes = set()
+
     degrees = meta.get("degrees") or {"CS": {"label": "Computer Science", "active": True}}
 
     # read-only dropdown from DB catalog (filtered by degree)
@@ -102,6 +118,7 @@ def view_plan(plan_id: int):
             continue
         catalog_courses.append(c)
 
+    print("SAMPLE META KEYS:", next(iter(meta_courses.values())).keys())
 
     return render_template(
         "plan_detail.html", 
@@ -113,6 +130,7 @@ def view_plan(plan_id: int):
         degrees=degrees,
         selected_degree=selected_degree,
         catalog_meta_courses=meta_courses,
+        optional_codes=optional_codes,
     )
 
 @main_bp.route("/plans/<int:plan_id>/settings", methods=["GET", "POST"])

@@ -17,6 +17,7 @@ from models.plan_constraint import PlanConstraint
 from models.plan_solution import PlanSolution
 from services.solver import build_inputs_from_plan, solve_plan as solve_plan_service
 from services.validation import validate_inputs_before_solve
+from services.catalog_meta import load_catalog_meta 
 from utils.semesters import format_semester_label
 
 
@@ -92,6 +93,8 @@ def view_saved_schedule(plan_id: int):
     # Convert keys back to ints for template logic.
     semester_labels = {int(k): v for k, v in (payload.get("semester_labels") or {}).items()}
     courses_by_semester = {int(k): v for k, v in (payload.get("courses_by_semester") or {}).items()}
+    warnings = json.loads(latest.warnings_json) if latest.warnings_json else []
+    meta = json.loads(latest.meta_json) if latest.meta_json else {}
 
     return render_template(
         "plan_schedule.html",
@@ -101,6 +104,8 @@ def view_saved_schedule(plan_id: int):
         semester_labels=semester_labels,
         courses_by_semester=courses_by_semester,
         infeasible_hints=payload.get("infeasible_hints", []),
+        warnings=warnings,
+        meta=meta,
     )
 
 
@@ -140,6 +145,10 @@ def solve_plan(plan_id: int):
     except ValueError as e:
         flash(str(e), "error")
         return redirect(url_for("main.view_plan", plan_id=plan_id))
+
+    # Load sidecar metadata once (display-only enrichment; Day 6 safe)
+    meta = load_catalog_meta()
+    meta_courses = meta.get("courses") or {}
 
     # Pre-solve validation (existing guardrails)
     precheck_hints = validate_inputs_before_solve(inputs)
@@ -199,11 +208,15 @@ def solve_plan(plan_id: int):
                 continue
 
             course_row = course_by_code.get(code)
+            m = meta_courses.get(str(code), {})
+            coreq_text = m.get("coreq_text")
+
             courses_by_semester[chosen_sem].append(
                 {
                     "code": code,
                     "name": course_row.name if course_row else code,
                     "credits": course_row.credits if course_row else None,
+                    "coreq_text": coreq_text,  # display-only (NOT enforced)
                 }
             )
 

@@ -74,6 +74,9 @@
                 >
                   {{ pc.catalog_course.code }} — {{ pc.catalog_course.name }}
                 </a>
+                {% if optional_codes is defined and (pc.catalog_course.code|string) in optional_codes %}
+                  <span class="badge bg-info text-dark ms-2">Optional</span>
+                {% endif %}
               {% else %}
                 <span class="fw-semibold">
                   {{ pc.catalog_course.code }} — {{ pc.catalog_course.name }}
@@ -92,6 +95,7 @@
                   {% if m.weekly_hours %}<div><strong>Weekly hours:</strong> {{ m.weekly_hours }}</div>{% endif %}
                   {% if m.lesson_type %}<div><strong>Type:</strong> {{ m.lesson_type }}</div>{% endif %}
                   {% if m.lecturer %}<div><strong>Lecturer:</strong> {{ m.lecturer }}</div>{% endif %}
+                  {% if m.coreq_text %}<div><strong>Corequisites (info):</strong> {{ m.coreq_text }}</div>{% endif %}
                 {% endif %}
               </div>
             </div>
@@ -249,8 +253,11 @@
     const preview = document.getElementById("catalog_meta_preview");
 
     function setPreviewFor(code) {
-      if (!this.value) {
-        if (preview) preview.textContent = "Select a catalog course to see catalog metadata (recommended year, hours, lecturer, coreqs).";
+      if (!code) {
+        if (preview) {
+          preview.textContent =
+            "Select a catalog course to see catalog metadata (recommended year, hours, lecturer, coreqs).";
+        }
         return;
       }
 
@@ -264,15 +271,18 @@
       if (m.coreq_text) rows.push(`<div class="mb-1"><strong>Corequisites (info):</strong> ${m.coreq_text}</div>`);
 
       if (!rows.length) {
-        preview.textContent = "No catalog metadata found for this course.";
+        if (preview) preview.textContent = "No catalog metadata found for this course.";
         return;
       }
 
-      preview.innerHTML = rows.join("");
+      if (preview) preview.innerHTML = rows.join("");
     }
 
     sel.addEventListener("change", function () {
-      if (!this.value) return;
+      if (!this.value) {
+        setPreviewFor(null);
+        return;
+      }
 
       const parts = this.value.split("||");
       if (parts.length !== 3) return;
@@ -289,6 +299,10 @@
 
       setPreviewFor(code);
     });
+
+    // initialize preview if something already selected
+    // const initial = sel.value ? sel.value.split("||")[0] : null;
+    // setPreviewFor(initial);
   })();
 </script>
 
