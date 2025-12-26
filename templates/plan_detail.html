@@ -65,15 +65,34 @@
         {% for pc in plan_courses %}
           <li class="list-group-item d-flex justify-content-between align-items-center">
             <div>
-              <a
-                href="{{ url_for('main.course_detail', plan_id=plan.id, course_id=pc.legacy_course_id) }}"
-                class="fw-semibold text-decoration-none"
-              >
-                {{ pc.catalog_course.code }} — {{ pc.catalog_course.name }}
-              </a>
+              {% if pc.legacy_course_id %}
+                <a
+                  href="{{ url_for('main.course_detail',
+                                   plan_id=plan.id,
+                                   course_id=pc.legacy_course_id) }}"
+                  class="fw-semibold text-decoration-none"
+                >
+                  {{ pc.catalog_course.code }} — {{ pc.catalog_course.name }}
+                </a>
+              {% else %}
+                <span class="fw-semibold">
+                  {{ pc.catalog_course.code }} — {{ pc.catalog_course.name }}
+                </span>
+                <div class="small text-muted">
+                  Details unavailable (legacy course not linked yet)
+                </div>
+              {% endif %}
 
+              {% set m = catalog_meta_courses.get(pc.catalog_course.code|string) %}
               <div class="small text-muted">
-                {{ pc.catalog_course.credits }} credits
+                <div><strong>Credits:</strong> {{ pc.catalog_course.credits }}</div>
+
+                {% if m %}
+                  {% if m.academic_year %}<div><strong>Recommended year:</strong> {{ m.academic_year }}</div>{% endif %}
+                  {% if m.weekly_hours %}<div><strong>Weekly hours:</strong> {{ m.weekly_hours }}</div>{% endif %}
+                  {% if m.lesson_type %}<div><strong>Type:</strong> {{ m.lesson_type }}</div>{% endif %}
+                  {% if m.lecturer %}<div><strong>Lecturer:</strong> {{ m.lecturer }}</div>{% endif %}
+                {% endif %}
               </div>
             </div>
 
@@ -118,6 +137,20 @@
         action="{{ url_for('main.add_course', plan_id=plan.id) }}"
       >
       <div class="mb-3">
+        <label class="form-label" for="degree_filter">Degree</label>
+        <select class="form-select" id="degree_filter">
+          {% for key, info in degrees.items() %}
+            <option value="{{ key }}" {% if key == selected_degree %}selected{% endif %}>
+              {{ info.label if info.label else key }}
+            </option>
+          {% endfor %}
+        </select>
+        <div class="form-text">
+          This filter affects the catalog dropdown only.
+        </div>
+      </div>
+
+      <div class="mb-3">
         <label for="catalog_pick" class="form-label">Pick from catalog (optional)</label>
         <select class="form-select" id="catalog_pick" name="catalog_pick">
           <option value="">— Choose a canonical course —</option>
@@ -129,6 +162,10 @@
         </select>
         <div class="form-text">
           Selecting a catalog course will fill Code/Name/Credits below.
+        </div>
+
+        <div id="catalog_meta_preview" class="mt-2 small text-muted">
+          Select a catalog course to see catalog metadata (recommended year, hours, lecturer, coreqs).
         </div>
       </div>
         <div class="row">
@@ -188,13 +225,55 @@
       </form>
     </div>
   </div>
+<script id="catalog-meta-json" type="application/json">
+  {{ catalog_meta_courses | tojson }}
+</script>
+
 <script>
   (function () {
+    const deg = document.getElementById("degree_filter");
+    if (deg) {
+      deg.addEventListener("change", function () {
+        const url = new URL(window.location.href);
+        url.searchParams.set("degree", this.value);
+        window.location.href = url.toString();
+      });
+    }
+
     const sel = document.getElementById("catalog_pick");
     if (!sel) return;
 
+    const metaEl = document.getElementById("catalog-meta-json");
+    const metaCourses = metaEl ? JSON.parse(metaEl.textContent || "{}") : {};
+
+    const preview = document.getElementById("catalog_meta_preview");
+
+    function setPreviewFor(code) {
+      if (!this.value) {
+        if (preview) preview.textContent = "Select a catalog course to see catalog metadata (recommended year, hours, lecturer, coreqs).";
+        return;
+      }
+
+      const m = metaCourses[String(code)] || {};
+      const rows = [];
+
+      if (m.academic_year) rows.push(`<div class="mb-1"><strong>Recommended year:</strong> ${m.academic_year}</div>`);
+      if (m.weekly_hours) rows.push(`<div class="mb-1"><strong>Weekly hours:</strong> ${m.weekly_hours}</div>`);
+      if (m.lesson_type) rows.push(`<div class="mb-1"><strong>Type:</strong> ${m.lesson_type}</div>`);
+      if (m.lecturer) rows.push(`<div class="mb-1"><strong>Lecturer:</strong> ${m.lecturer}</div>`);
+      if (m.coreq_text) rows.push(`<div class="mb-1"><strong>Corequisites (info):</strong> ${m.coreq_text}</div>`);
+
+      if (!rows.length) {
+        preview.textContent = "No catalog metadata found for this course.";
+        return;
+      }
+
+      preview.innerHTML = rows.join("");
+    }
+
     sel.addEventListener("change", function () {
       if (!this.value) return;
+
       const parts = this.value.split("||");
       if (parts.length !== 3) return;
 
@@ -207,6 +286,8 @@
       if (codeInput) codeInput.value = code;
       if (nameInput) nameInput.value = name;
       if (creditsInput) creditsInput.value = credits;
+
+      setPreviewFor(code);
     });
   })();
 </script>

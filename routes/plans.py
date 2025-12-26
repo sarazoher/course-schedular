@@ -2,6 +2,7 @@ from flask import render_template, redirect, url_for, request, abort, flash
 from flask_login import current_user, login_required
 
 from . import main_bp
+from models.course import Course
 from models.catalog_course import CatalogCourse
 from models.plan_course import PlanCourse
 from models.degree_plan import DegreePlan
@@ -10,8 +11,7 @@ from models.prerequisite import Prerequisite
 from models.plan_solution import PlanSolution
 from extensions import db
 
-from services.solver import build_inputs_from_plan, build_model
-from pulp import PULP_CBC_CMD, LpStatus
+from services.catalog_meta import load_catalog_meta
 
 @main_bp.route("/")
 def home():
@@ -84,8 +84,24 @@ def view_plan(plan_id: int):
         .first()
         )
     
-    # Phase 2: read-only dropdown from DB catalog
-    catalog_courses = CatalogCourse.query.order_by(CatalogCourse.code.asc()).all()
+    # ---- load sidecar metadata + degree filter ----
+    selected_degree = (request.args.get("degree") or "CS").strip()
+
+    meta = load_catalog_meta()
+    meta_courses = meta.get("courses") or {}
+    degrees = meta.get("degrees") or {"CS": {"label": "Computer Science", "active": True}}
+
+    # read-only dropdown from DB catalog (filtered by degree)
+    all_catalog_courses = CatalogCourse.query.order_by(CatalogCourse.code.asc()).all()
+
+    catalog_courses = []
+    for c in all_catalog_courses:
+        m = meta_courses.get(str(c.code), {})
+        tags = m.get("degree_tags") or ["CS"]
+        if selected_degree and selected_degree not in tags:
+            continue
+        catalog_courses.append(c)
+
 
     return render_template(
         "plan_detail.html", 
@@ -94,6 +110,9 @@ def view_plan(plan_id: int):
         constraints=constraints,
         catalog_courses=catalog_courses,
         latest_solution=latest_solution,
+        degrees=degrees,
+        selected_degree=selected_degree,
+        catalog_meta_courses=meta_courses,
     )
 
 @main_bp.route("/plans/<int:plan_id>/settings", methods=["GET", "POST"])

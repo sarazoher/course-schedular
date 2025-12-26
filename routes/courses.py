@@ -11,6 +11,7 @@ from models.prerequisite import Prerequisite
 from models.plan_constraint import PlanConstraint
 from extensions import db
 from utils.semesters import format_semester_label
+from services.catalog_meta import meta_for_code
 
 
 def _upsert_catalog_course(*, code: str, name: str, credits: float) -> None:
@@ -450,11 +451,13 @@ def course_detail(plan_id: int, course_id: int):
 
     cycle_risk_ids = reachable
 
+    catalog_meta = meta_for_code(course.code)
 
     return render_template(
         "course_detail.html",
         plan=plan,
         course=course,
+        catalog_meta=catalog_meta,
         total_semesters=total_semesters,
         selected_semesters=selected_semesters,
         incoming_prereqs=incoming_prereqs,
