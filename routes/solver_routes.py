@@ -20,6 +20,13 @@ from services.validation import validate_inputs_before_solve
 from services.catalog_meta import load_catalog_meta 
 from utils.semesters import format_semester_label
 
+def _is_optional_by_code(code: str) -> bool:
+    s = str(code).strip()
+    if s.startswith("851"):
+        return True
+    if s.startswith("850"):
+        return False
+    return True
 
 def _save_latest_solution(
     *,
@@ -96,6 +103,11 @@ def view_saved_schedule(plan_id: int):
     warnings = json.loads(latest.warnings_json) if latest.warnings_json else []
     meta = json.loads(latest.meta_json) if latest.meta_json else {}
 
+    # Optional codes for badges in schedule view
+    cat = load_catalog_meta()
+    meta_courses = cat.get("courses") or {}
+    optional_codes = {str(code) for code in meta_courses.keys() if _is_optional_by_code(code)}
+
     return render_template(
         "plan_schedule.html",
         plan=plan,
@@ -106,6 +118,7 @@ def view_saved_schedule(plan_id: int):
         infeasible_hints=payload.get("infeasible_hints", []),
         warnings=warnings,
         meta=meta,
+        optional_codes=optional_codes,
     )
 
 
@@ -146,9 +159,9 @@ def solve_plan(plan_id: int):
         flash(str(e), "error")
         return redirect(url_for("main.view_plan", plan_id=plan_id))
 
-    # Load sidecar metadata once (display-only enrichment; Day 6 safe)
-    meta = load_catalog_meta()
-    meta_courses = meta.get("courses") or {}
+    # Sidecar metadata (display-only)
+    cat = load_catalog_meta()
+    meta_courses = cat.get("courses") or {}
 
     # Pre-solve validation (existing guardrails)
     precheck_hints = validate_inputs_before_solve(inputs)
@@ -209,7 +222,7 @@ def solve_plan(plan_id: int):
 
             course_row = course_by_code.get(code)
             m = meta_courses.get(str(code), {})
-            coreq_text = m.get("coreq_text")
+            coreq_text = m.get("coreq_text") if isinstance(m, dict) else None
 
             courses_by_semester[chosen_sem].append(
                 {

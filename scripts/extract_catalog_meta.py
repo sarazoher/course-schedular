@@ -38,7 +38,7 @@ def _normalize_lesson_type(raw: Any) -> Optional[str]:
 
     t = s.replace(" ", "")
 
-    # match your XLSX meanings; keep it simple for Day 5
+    # match your XLSX meanings keep it simple 
     if "תרגול" in t and ("הרצאה" in t or "שיעור" in t):
         return "lesson+practice"
     if "הרצאה" in t or "שיעור" in t:

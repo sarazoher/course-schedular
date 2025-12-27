@@ -81,6 +81,9 @@
                 <span class="fw-semibold">
                   {{ pc.catalog_course.code }} — {{ pc.catalog_course.name }}
                 </span>
+                {% if optional_codes is defined and (pc.catalog_course.code|string) in optional_codes %}
+                  <span class="badge bg-info text-dark ms-2">Optional</span>
+                {% endif %}
                 <div class="small text-muted">
                   Details unavailable (legacy course not linked yet)
                 </div>
@@ -101,26 +104,35 @@
             </div>
 
             <div class="d-flex justify-content-end gap-2">
-                          <a
-                href="{{ url_for('main.course_detail',
-                                 plan_id=plan.id,
-                                 course_id=pc.legacy_course_id) }}"
-                class="btn btn-outline-secondary btn-sm"
-              >
-                Edit &amp; details
-              </a>
-
-              <form
-                method="POST"
-                action="{{ url_for('main.delete_course',
+              {% if pc.legacy_course_id %}
+                <a
+                  href="{{ url_for('main.course_detail',
                                    plan_id=plan.id,
                                    course_id=pc.legacy_course_id) }}"
-                onsubmit="return confirm('Delete this course?');"
-              >
-                <button type="submit" class="btn btn-outline-danger btn-sm">
-                  Delete
+                  class="btn btn-outline-secondary btn-sm"
+                >
+                  Edit &amp; details
+                </a>
+
+                <form
+                  method="POST"
+                  action="{{ url_for('main.delete_course',
+                                     plan_id=plan.id,
+                                     course_id=pc.legacy_course_id) }}"
+                  onsubmit="return confirm('Delete this course?');"
+                >
+                  <button type="submit" class="btn btn-outline-danger btn-sm">
+                    Delete
+                  </button>
+                </form>
+              {% else %}
+                <button type="button" class="btn btn-outline-secondary btn-sm" disabled>
+                  Not linked
                 </button>
-              </form>
+                <span class="small text-muted align-self-center">
+                  (No legacy course row yet)
+                </span>
+              {% endif %}
             </div>
           </li>
         {% endfor %}
@@ -129,6 +141,54 @@
   {% else %}
     <p class="text-muted">No courses in this plan yet.</p>
   {% endif %}
+
+  <div class="card mb-4">
+    <div class="card-header">
+      Bulk add from catalog
+    </div>
+
+    <div class="card-body">
+      <form method="POST" action="{{ url_for('main.bulk_add_courses_v2', plan_id=plan.id) }}">
+        <input type="hidden" name="degree" value="{{ selected_degree }}">
+
+        <div class="row">
+          <div class="col-md-3 mb-3">
+            <label class="form-label" for="bulk_year">Recommended year (optional)</label>
+            <select class="form-select" id="bulk_year" name="year">
+              <option value="">All years</option>
+              {% for y in available_years | default([]) %}
+                <option value="{{ y }}">{{ y }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="col-md-9 mb-3 d-flex align-items-end gap-4">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="bulk_mandatory_only" name="mandatory_only" checked>
+              <label class="form-check-label" for="bulk_mandatory_only">
+                Mandatory only
+              </label>
+            </div>
+
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="bulk_include_optional" name="include_optional">
+              <label class="form-check-label" for="bulk_include_optional">
+                Include optional courses
+              </label>
+            </div>
+
+            <button type="submit" class="btn btn-outline-success">
+              Bulk add
+            </button>
+          </div>
+        </div>
+
+        <div class="small text-muted">
+          Optional is inferred from course code: <code>850…</code> mandatory, <code>851…</code> optional; other degrees treated as optional by default.
+        </div>
+      </form>
+    </div>
+  </div>
 
   <div class="card">
     <div class="card-header">

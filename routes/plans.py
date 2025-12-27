@@ -13,9 +13,23 @@ from models.degree_plan import DegreePlan
 from models.plan_constraint import PlanConstraint
 from models.prerequisite import Prerequisite
 from models.plan_solution import PlanSolution
+from services.catalog_meta import load_catalog_meta
 from extensions import db
 
-from services.catalog_meta import load_catalog_meta
+
+def _is_optional_by_code(code: str) -> bool:
+    """
+    Gather optional/mandatory from course code.
+    - 850xxxx: mandatory CS (default)
+    - 851xxxx: optional CS (default)
+    - everything else (e.g., 71xxxx / 81xxxx): treat as optional by default
+    """
+    s = str(code).strip()
+    if s.startswith("851"):
+        return True
+    if s.startswith("850"):
+        return False
+    return True
 
 @main_bp.route("/")
 def home():
@@ -94,16 +108,22 @@ def view_plan(plan_id: int):
     meta = load_catalog_meta()
     meta_courses = meta.get("courses") or {}
 
-        # ---- Optional courses sidecar (UI-only, not in DB) ----
+    # ---- optional courses policy (UI-only) ----
+    # Rule: 850... mandatory, 851... optional, other degrees optional by default
     optional_codes: set[str] = set()
+    for code_str in meta_courses.keys():
+        if _is_optional_by_code(code_str):
+            optional_codes.add(str(code_str))
+
+    # Optional override layer (if present): data_catalog/optional_courses.json
     opt_path = Path(Config.CATALOG_DIR) / "optional_courses.json"
     if opt_path.exists():
         try:
             data = json.loads(opt_path.read_text(encoding="utf-8"))
-            optional_codes = set(str(x) for x in (data.get("optional_codes") or []))
+            for x in (data.get("optional_codes") or []):
+                optional_codes.add(str(x))
         except Exception:
-            # Don't crash the page if config is malformed, treat as "no optionals"
-            optional_codes = set()
+            pass
 
     degrees = meta.get("degrees") or {"CS": {"label": "Computer Science", "active": True}}
 
@@ -118,7 +138,15 @@ def view_plan(plan_id: int):
             continue
         catalog_courses.append(c)
 
-    print("SAMPLE META KEYS:", next(iter(meta_courses.values())).keys())
+    # Years dropdown helper (based on filtered metadata for selected degree)
+    years_set = set()
+    for c in catalog_courses:
+        m = meta_courses.get(str(c.code), {}) if isinstance(meta_courses.get(str(c.code), {}), dict) else {}
+        y = m.get("academic_year")
+        if y:
+            years_set.add(str(y))
+    available_years = sorted(years_set, key=lambda s: int(s) if s.isdigit() else 999)
+
 
     return render_template(
         "plan_detail.html", 
@@ -131,7 +159,194 @@ def view_plan(plan_id: int):
         selected_degree=selected_degree,
         catalog_meta_courses=meta_courses,
         optional_codes=optional_codes,
+        available_years=available_years,
     )
+
+@main_bp.post("/plans/<int:plan_id>/bulk_add_v2", endpoint="bulk_add_courses_v2")
+@login_required
+def bulk_add_courses_v2(plan_id: int):
+    """
+    Day 6: Bulk add catalog courses into plan (PlanCourse), with safe defaults:
+    - optional excluded by default
+    - optional included only if checkbox checked
+    - skip courses already in the plan
+
+    Conflict-proof: unique URL + endpoint name.
+    """
+    plan = DegreePlan.query.filter_by(
+        id=plan_id,
+        user_id=current_user.id,
+    ).first()
+    if plan is None:
+        abort(404)
+
+    selected_degree = (request.form.get("degree") or "CS").strip()
+    year_filter = (request.form.get("year") or "").strip()
+    mandatory_only = bool(request.form.get("mandatory_only"))
+    include_optional = bool(request.form.get("include_optional"))
+
+    meta = load_catalog_meta()
+    meta_courses = meta.get("courses") or {}
+
+    existing_catalog_ids = {
+        pc.catalog_course_id
+        for pc in PlanCourse.query.filter_by(plan_id=plan.id).all()
+    }
+
+    all_catalog = CatalogCourse.query.order_by(CatalogCourse.code.asc()).all()
+
+    to_add: list[PlanCourse] = []
+    skipped_existing = 0
+    skipped_optional = 0
+    skipped_degree = 0
+    skipped_year = 0
+
+    for c in all_catalog:
+        code = str(c.code)
+        m = meta_courses.get(code, {})
+        if not isinstance(m, dict):
+            m = {}
+
+        # Degree filter (metadata tags)
+        tags = m.get("degree_tags") or ["CS"]
+        if selected_degree and selected_degree not in tags:
+            skipped_degree += 1
+            continue
+
+        # Year filter (metadata)
+        if year_filter:
+            if str(m.get("academic_year") or "").strip() != year_filter:
+                skipped_year += 1
+                continue
+
+        # Mandatory-only means: include only 850... (non-optional)
+        if mandatory_only and _is_optional_by_code(code):
+            skipped_optional += 1
+            continue
+
+        # Optional exclusion by default unless explicitly included
+        if (not include_optional) and _is_optional_by_code(code):
+            skipped_optional += 1
+            continue
+
+        # Skip duplicates already in plan
+        if c.id in existing_catalog_ids:
+            skipped_existing += 1
+            continue
+
+        to_add.append(
+            PlanCourse(
+                plan_id=plan.id,
+                catalog_course_id=c.id,
+                legacy_course_id=None,
+            )
+        )
+
+    if to_add:
+        db.session.add_all(to_add)
+        db.session.commit()
+        flash(f"Bulk import added {len(to_add)} courses.", "success")
+    else:
+        flash("Bulk import: nothing to add (filters too strict or already added).", "info")
+
+    flash(
+        f"Skipped — existing: {skipped_existing}, optional: {skipped_optional}, "
+        f"degree: {skipped_degree}, year: {skipped_year}.",
+        "secondary",
+    )
+
+    return redirect(url_for("main.view_plan", plan_id=plan.id, degree=selected_degree))
+
+
+@main_bp.post("/plans/<int:plan_id>/bulk_add")
+@login_required
+def bulk_add_courses(plan_id: int):
+    plan = DegreePlan.query.filter_by(
+        id=plan_id,
+        user_id=current_user.id,
+    ).first()
+    if plan is None:
+        abort(404)
+
+    selected_degree = (request.form.get("degree") or "CS").strip()
+    year_filter = (request.form.get("year") or "").strip()  # e.g. "1", "2", ...
+    mandatory_only = bool(request.form.get("mandatory_only"))
+    include_optional = bool(request.form.get("include_optional"))
+
+    meta = load_catalog_meta()
+    meta_courses = meta.get("courses") or {}
+
+    # Existing catalog_course_ids already in plan (skip duplicates)
+    existing_catalog_ids = {
+        pc.catalog_course_id
+        for pc in PlanCourse.query.filter_by(plan_id=plan.id).all()
+    }
+
+    # Start from all catalog courses (then filter by degree + year + optional rules)
+    all_catalog = CatalogCourse.query.order_by(CatalogCourse.code.asc()).all()
+
+    to_add: list[PlanCourse] = []
+    skipped_optional = 0
+    skipped_existing = 0
+    skipped_degree = 0
+    skipped_year = 0
+    skipped_mandatory = 0
+
+    for c in all_catalog:
+        code = str(c.code)
+        m = meta_courses.get(code, {}) if isinstance(meta_courses.get(code, {}), dict) else {}
+
+        # Degree filter (uses degree_tags from metadata)
+        tags = m.get("degree_tags") or ["CS"]
+        if selected_degree and selected_degree not in tags:
+            skipped_degree += 1
+            continue
+
+        # Year filter (uses academic_year from metadata)
+        if year_filter:
+            if str(m.get("academic_year") or "").strip() != year_filter:
+                skipped_year += 1
+                continue
+
+        # Mandatory-only filter (exclude "other")
+        if mandatory_only:
+            if _is_optional_by_code(code):
+                skipped_mandatory += 1
+                continue
+
+        # Optional exclusion by default (unless include_optional checked)
+        if (not include_optional) and _is_optional_by_code:
+            skipped_optional += 1
+            continue
+
+        # Skip if already in the plan
+        if c.id in existing_catalog_ids:
+            skipped_existing += 1
+            continue
+
+        to_add.append(
+            PlanCourse(
+                plan_id=plan.id,
+                catalog_course_id=c.id,
+                legacy_course_id=None,
+            )
+        )
+
+    if to_add:
+        db.session.add_all(to_add)
+        db.session.commit()
+        flash(f"Bulk import: added {len(to_add)} courses.", "success")
+    else:
+        flash("Bulk import: nothing to add (filters may be too strict, or everything is already in the plan).", "info")
+
+    # Helpful summary (optional)
+    flash(
+        f"Skipped — existing: {skipped_existing}, optional: {skipped_optional}, "
+        f"degree: {skipped_degree}, year: {skipped_year}, mandatory-only: {skipped_mandatory}.",
+        "secondary",
+    )
+
+    return redirect(url_for("main.view_plan", plan_id=plan.id, degree=selected_degree))
 
 @main_bp.route("/plans/<int:plan_id>/settings", methods=["GET", "POST"])
 @login_required
