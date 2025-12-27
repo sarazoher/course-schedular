@@ -19,15 +19,10 @@ from services.solver import build_inputs_from_plan, solve_plan as solve_plan_ser
 from services.validation import validate_inputs_before_solve
 from services.catalog_meta import load_catalog_meta 
 from utils.semesters import format_semester_label
+from utils.optional_courses import get_optional_course_codes
 
-def _is_optional_by_code(code: str) -> bool:
-    s = str(code).strip()
-    if s.startswith("851"):
-        return True
-    if s.startswith("850"):
-        return False
-    return True
-
+optional_codes = get_optional_course_codes
+    
 def _save_latest_solution(
     *,
     plan_id: int,
@@ -103,10 +98,7 @@ def view_saved_schedule(plan_id: int):
     warnings = json.loads(latest.warnings_json) if latest.warnings_json else []
     meta = json.loads(latest.meta_json) if latest.meta_json else {}
 
-    # Optional codes for badges in schedule view
-    cat = load_catalog_meta()
-    meta_courses = cat.get("courses") or {}
-    optional_codes = {str(code) for code in meta_courses.keys() if _is_optional_by_code(code)}
+    optional_codes = get_optional_course_codes()
 
     return render_template(
         "plan_schedule.html",

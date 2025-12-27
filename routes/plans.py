@@ -15,22 +15,9 @@ from models.plan_constraint import PlanConstraint
 from models.prerequisite import Prerequisite
 from models.plan_solution import PlanSolution
 from services.catalog_meta import load_catalog_meta
+from utils.optional_courses import get_optional_course_codes, is_optional_by_code
 from extensions import db
 
-
-def _is_optional_by_code(code: Any) -> bool:
-    """
-    infer optional/mandatory from course code.
-    - 850xxxx: mandatory CS
-    - 851xxxx: optional CS
-    - everything else (e.g., 71xxxx / other degrees): treat as optional by default
-   """
-    s = str(code).strip()
-    if s.startswith("851"):
-        return True
-    if s.startswith("850"):
-        return False
-    return True
 
 @main_bp.route("/")
 def home():
@@ -94,6 +81,9 @@ def view_plan(plan_id: int):
         .order_by(CatalogCourse.code.asc())
         .all()
     )
+
+    unlinked_count = sum(1 for pc in plan_courses if not pc.legacy_course_id)
+
     constraints = PlanConstraint.query.filter_by(degree_plan_id=plan.id).first()
 
     latest_solution = (
@@ -109,22 +99,7 @@ def view_plan(plan_id: int):
     meta = load_catalog_meta()
     meta_courses = meta.get("courses") or {}
 
-    # ---- optional courses policy (UI-only) ----
-    # Rule: 850... mandatory, 851... optional, other degrees optional by default
-    optional_codes: set[str] = set()
-    for code_str in meta_courses.keys():
-        if _is_optional_by_code(code_str):
-            optional_codes.add(str(code_str))
-
-    # Optional override layer (if present): data_catalog/optional_courses.json
-    opt_path = Path(Config.CATALOG_DIR) / "optional_courses.json"
-    if opt_path.exists():
-        try:
-            data = json.loads(opt_path.read_text(encoding="utf-8"))
-            for x in (data.get("optional_codes") or []):
-                optional_codes.add(str(x))
-        except Exception:
-            pass
+    optional_codes = get_optional_course_codes()
 
     degrees = meta.get("degrees") or {"CS": {"label": "Computer Science", "active": True}}
 
@@ -161,6 +136,7 @@ def view_plan(plan_id: int):
         catalog_meta_courses=meta_courses,
         optional_codes=optional_codes,
         available_years=available_years,
+        unlinked_count=unlinked_count,
     )
 
 @main_bp.post("/plans/<int:plan_id>/bulk_add_v2", endpoint="bulk_add_courses_v2")
@@ -221,12 +197,12 @@ def bulk_add_courses_v2(plan_id: int):
                 continue
 
         # Mandatory-only means: include only 850... (non-optional)
-        if mandatory_only and _is_optional_by_code(code):
+        if mandatory_only and is_optional_by_code(code):
             skipped_optional += 1
             continue
 
         # Optional exclusion by default unless explicitly included
-        if (not include_optional) and _is_optional_by_code(code):
+        if (not include_optional) and is_optional_by_code(code):
             skipped_optional += 1
             continue
 

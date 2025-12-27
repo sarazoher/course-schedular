@@ -88,11 +88,8 @@
               {% if m.academic_year %}<div>Recommended year: {{ m.academic_year }}</div>{% endif %}
               {% if m.weekly_hours %}<div>Weekly hours: {{ m.weekly_hours }}</div>{% endif %}
               {% if m.lesson_type %}<div>Type: {{ m.lesson_type }}</div>{% endif %}
+              {% if m.lecturer %}<div class="small">Lecturer: {{ m.lecturer }}</div>{% endif %}
             </div>
-
-            {% if m.lecturer %}
-              <div class="small">Lecturer: {{ m.lecturer }}</div>
-            {% endif %}
 
             {% if m.coreq_text %}
               <div class="small mt-1">

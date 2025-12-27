@@ -51,6 +51,12 @@
   </div>
 </div>
 
+  {% if unlinked_count and unlinked_count > 0 %}
+    <div class="alert alert-warning mt-3" role="alert">
+      <strong>{{ unlinked_count }}</strong> course(s) were added from the catalog but are <strong>not linked</strong> to legacy Course row yet.
+      The solver currently schedules only legacy courses,so these will be <strong>ignored</strong> until migration and linking is implemented. (wii be soon)
+    </div>
+  {% endif %}
 
   <h4 class="mt-4 mb-2">Courses in this plan</h4>
 
