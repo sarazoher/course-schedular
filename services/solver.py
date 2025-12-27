@@ -97,16 +97,51 @@ def add_ir_prereq_constraints(
       - external/unresolved (code == None): ignore but warn
       - missing_course (internal code not in model): ignore but warn
     """
+    # PuLP requires *globally* unique constraint names across the whole model.
+    # Some backends (and PuLP internals) may also truncate long names, which can
+    # re-introduce collisions if uniqueness is only appended at the end.
+    # So: keep names short and bake uniqueness into a hash prefix.
+    import hashlib
+    import re
+
+    # model-scoped name counter (persists across multiple calls)
+    if not hasattr(model, "_cn_counts"):
+        setattr(model, "_cn_counts", {})
+    cn_counts: Dict[str, int] = getattr(model, "_cn_counts")  # type: ignore[assignment]
+
+    # unique run id so SAT variable names don't collide if this function is called twice
+    run_id = int(getattr(model, "_ir_prereq_run_id", 0)) + 1
+    setattr(model, "_ir_prereq_run_id", run_id)
+
+    def _slug(v: Any, max_len: int = 18) -> str:
+        s = re.sub(r"[^A-Za-z0-9_]+", "_", str(v)).strip("_")
+        return (s[:max_len] or "x")
+
+    def _cn(tag: str, *parts: Any) -> str:
+        raw = tag + "|" + "|".join(str(p) for p in parts)
+        digest = hashlib.sha1(raw.encode("utf-8")).hexdigest()[:10]
+        n = cn_counts.get(digest, 0)
+        cn_counts[digest] = n + 1
+        # Keep short to avoid truncation-based collisions
+        return f"pr_{_slug(tag)}_{digest}_{n}"
+
     sat_cache: Dict[Tuple[int, int], LpVariable] = {}
+    node_ids: Dict[int, int] = {}
 
-    # ---- Ensure unique PuLP constraint names ----
-    _name_counts: Dict[str, int] = {}
+    # Avoid duplicate warnings: SAT encoding is evaluated per-semester, so without a guard
+    # you'll emit the same unresolved/external leaf many times.
+    seen_warn: set[Tuple[str, str, str]] = set()
 
-    def _uniq(name: str) -> str:
-        """PuLP requires unique constraint names across the whole model."""
-        n = _name_counts.get(name, 0)
-        _name_counts[name] = n + 1
-        return name if n == 0 else f"{name}__{n}"
+    def _warn(raw: Any, kind: str):
+        r = str(raw or "").strip()
+        if not r:
+            return
+        k = kind if kind in ("external", "unresolved", "missing_course") else "unresolved"
+        key = (str(target_course), r, k)
+        if key in seen_warn:
+            return
+        seen_warn.add(key)
+        warnings.append(SolverWarning(course=str(target_course), raw=r, kind=k))
 
     def sat(node: Req, s: int) -> LpVariable:
         nonlocal model
@@ -114,10 +149,10 @@ def add_ir_prereq_constraints(
         if key in sat_cache:
             return sat_cache[key]
 
-        node_tag = id(node) % 10_000_000  # stable-ish short tag per node instance
+        node_uid = node_ids.setdefault(id(node), len(node_ids) + 1)
 
         z = LpVariable(
-            f"sat_{target_course}_{s}_{node_tag}",
+            f"sat_{_slug(target_course, 12)}_{s}_{run_id}_{node_uid}",
             lowBound=0,
             upBound=1,
             cat=LpBinary,
@@ -129,34 +164,32 @@ def add_ir_prereq_constraints(
             if node.code is None:
                 raw = (node.raw or "").strip()
                 kind = node.kind if node.kind in ("external", "unresolved") else "unresolved"
-                if raw:
-                    warnings.append(SolverWarning(course=target_course, raw=raw, kind=kind))
-                model += z == 1, _uniq(f"sat_leaf_ignored_{target_course}_{s}_{node_tag}")
+                _warn(raw, kind)
+                model += z == 1, _cn("sat_leaf_ignored", target_course, s, run_id, node_uid)
                 return z
 
             if node.code not in allowed_semesters:
-                warnings.append(SolverWarning(course=target_course, raw=node.code, kind="missing_course"))
-                model += z == 1, _uniq(f"sat_leaf_missing_{target_course}_{s}_{node_tag}")
+                _warn(node.code, "missing_course")
+                model += z == 1, _cn("sat_leaf_missing", target_course, s, run_id, node_uid, node.code)
                 return z
 
             before = scheduled_before_expr(x, allowed_semesters, node.code, s)
             # before is 0/1, enforce z == before
-            # ---- Include node_tag AND run through _uniq ----
-            model += z <= before, _uniq(f"sat_leaf_le_{target_course}_{node.code}_{s}_{node_tag}")
-            model += z >= before, _uniq(f"sat_leaf_ge_{target_course}_{node.code}_{s}_{node_tag}")
+            model += z <= before, _cn("sat_leaf_le", target_course, s, run_id, node_uid, node.code)
+            model += z >= before, _cn("sat_leaf_ge", target_course, s, run_id, node_uid, node.code)
             return z
 
         # ---- AND ----
         if isinstance(node, ReqAnd):
             items = node.items
             if not items:
-                model += z == 1, _uniq(f"sat_and_empty_{target_course}_{s}_{node_tag}")
+                model += z == 1, _cn("sat_and_empty", target_course, s, run_id, node_uid)
                 return z
             child_zs = [sat(ch, s) for ch in items]
             for i, cz in enumerate(child_zs):
-                model += z <= cz, _uniq(f"sat_and_le_{target_course}_{s}_{node_tag}_{i}")
-            model += z >= lpSum(child_zs) - (len(child_zs) - 1), _uniq(
-                f"sat_and_ge_{target_course}_{s}_{node_tag}"
+                model += z <= cz, _cn("sat_and_le", target_course, s, run_id, node_uid, i)
+            model += z >= lpSum(child_zs) - (len(child_zs) - 1), _cn(
+                "sat_and_ge", target_course, s, run_id, node_uid
             )
             return z
 
@@ -164,22 +197,22 @@ def add_ir_prereq_constraints(
         if isinstance(node, ReqOr):
             items = node.items
             if not items:
-                model += z == 1, _uniq(f"sat_or_empty_{target_course}_{s}_{node_tag}")
+                model += z == 1, _cn("sat_or_empty", target_course, s, run_id, node_uid)
                 return z
             child_zs = [sat(ch, s) for ch in items]
             for i, cz in enumerate(child_zs):
-                model += z >= cz, _uniq(f"sat_or_ge_{target_course}_{s}_{node_tag}_{i}")
-            model += z <= lpSum(child_zs), _uniq(f"sat_or_le_{target_course}_{s}_{node_tag}")
+                model += z >= cz, _cn("sat_or_ge", target_course, s, run_id, node_uid, i)
+            model += z <= lpSum(child_zs), _cn("sat_or_le", target_course, s, run_id, node_uid)
             return z
 
         # fallback safety
-        warnings.append(SolverWarning(course=target_course, raw=str(type(node)), kind="unresolved"))
-        model += z == 1, _uniq(f"sat_unknown_{target_course}_{s}_{node_tag}")
+        _warn(str(type(node)), "unresolved")
+        model += z == 1, _cn("sat_unknown", target_course, s, run_id, node_uid)
         return z
 
     # Enforce root satisfaction when target is placed in semester s
     for s in allowed_semesters[target_course]:
-        model += x[target_course][s] <= sat(prereq_tree, s), _uniq(f"prereq_ir_{target_course}_{s}")
+        model += x[target_course][s] <= sat(prereq_tree, s), _cn("prereq_ir", target_course, s, run_id)
 
 
 # -----------------------------
