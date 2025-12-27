@@ -96,13 +96,11 @@
                 {% if m %}
                   {% if m.academic_year %}<div><strong>Recommended year:</strong> {{ m.academic_year }}</div>{% endif %}
                   {% if m.weekly_hours %}<div><strong>Weekly hours:</strong> {{ m.weekly_hours }}</div>{% endif %}
-                  {% if m.lesson_type %}<div><strong>Type:</strong> {{ m.lesson_type }}</div>{% endif %}
                   {% if m.lecturer %}<div><strong>Lecturer:</strong> {{ m.lecturer }}</div>{% endif %}
                   {% if m.coreq_text %}<div><strong>Corequisites (info):</strong> {{ m.coreq_text }}</div>{% endif %}
                 {% endif %}
               </div>
             </div>
-
             <div class="d-flex justify-content-end gap-2">
               {% if pc.legacy_course_id %}
                 <a
@@ -129,9 +127,6 @@
                 <button type="button" class="btn btn-outline-secondary btn-sm" disabled>
                   Not linked
                 </button>
-                <span class="small text-muted align-self-center">
-                  (No legacy course row yet)
-                </span>
               {% endif %}
             </div>
           </li>
