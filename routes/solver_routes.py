@@ -15,6 +15,8 @@ from extensions import db
 from models.degree_plan import DegreePlan
 from models.plan_constraint import PlanConstraint
 from models.plan_solution import PlanSolution
+from models.plan_course import PlanCourse
+from models.catalog_course import CatalogCourse
 from services.solver import build_inputs_from_plan, solve_plan as solve_plan_service
 from services.validation import validate_inputs_before_solve
 from services.catalog_meta import load_catalog_meta 
@@ -203,7 +205,14 @@ def solve_plan(plan_id: int):
 
     if status == "Optimal":
         # Map course_code -> Course row for display (title/credits...)
-        course_by_code = {c.code: c for c in plan.courses}
+        plan_courses = (
+            PlanCourse.query
+            .filter_by(plan_id=plan.id)
+            .join(CatalogCourse, PlanCourse.catalog_course_id == CatalogCourse.id)
+            .all()
+        )
+        catalog_by_code = {str(pc.catalog_course.code): pc.catalog_course for pc in plan_courses}
+        legacy_by_code = {str(pc.legacy_course.code): pc.legacy_course for pc in plan_courses if pc.legacy_course is not None}
 
         for code, chosen_sem in schedule.items():
             if chosen_sem is None:
@@ -212,15 +221,24 @@ def solve_plan(plan_id: int):
                 # Out-of-range semester (should not happen, but keep safe)
                 continue
 
-            course_row = course_by_code.get(code)
+            cat_row = catalog_by_code.get(str(code))
+            legacy_row = legacy_by_code.get(str(code))
             m = meta_courses.get(str(code), {})
             coreq_text = m.get("coreq_text") if isinstance(m, dict) else None
 
             courses_by_semester[chosen_sem].append(
                 {
                     "code": code,
-                    "name": course_row.name if course_row else code,
-                    "credits": course_row.credits if course_row else None,
+                    "name": (
+                        cat_row.name
+                        if cat_row
+                        else (legacy_row.name if legacy_row else code)
+                    ),
+                    "credits": (
+                        float(cat_row.credits)
+                        if (cat_row and cat_row.credits is not None)
+                        else (legacy_row.credits if legacy_row else None)
+                    ),
                     "coreq_text": coreq_text,  # display-only (NOT enforced)
                 }
             )

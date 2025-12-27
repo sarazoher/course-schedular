@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from pulp import (
     LpProblem,
@@ -19,7 +19,6 @@ from utils.course_catalog import load_catalog, build_resolver
 from utils.external_rules import load_external_rules
 from utils.alias_rules import load_aliases_csv
 from utils.req_parser import parse_req_text
-
 from services.req_ir import Req, ReqLeaf, ReqAnd, ReqOr
 
 # -----------------------------
@@ -100,14 +99,25 @@ def add_ir_prereq_constraints(
     """
     sat_cache: Dict[Tuple[int, int], LpVariable] = {}
 
+    # ---- Ensure unique PuLP constraint names ----
+    _name_counts: Dict[str, int] = {}
+
+    def _uniq(name: str) -> str:
+        """PuLP requires unique constraint names across the whole model."""
+        n = _name_counts.get(name, 0)
+        _name_counts[name] = n + 1
+        return name if n == 0 else f"{name}__{n}"
+
     def sat(node: Req, s: int) -> LpVariable:
-        nonlocal model      # fixes UnboundLocalError 
+        nonlocal model
         key = (id(node), s)
         if key in sat_cache:
             return sat_cache[key]
 
+        node_tag = id(node) % 10_000_000  # stable-ish short tag per node instance
+
         z = LpVariable(
-            f"sat_{target_course}_{s}_{id(node) % 10_000_000}",
+            f"sat_{target_course}_{s}_{node_tag}",
             lowBound=0,
             upBound=1,
             cat=LpBinary,
@@ -117,58 +127,59 @@ def add_ir_prereq_constraints(
         # ---- Leaf ----
         if isinstance(node, ReqLeaf):
             if node.code is None:
-                # external/unresolved leaf is ignored at solve-time (new requirement)
                 raw = (node.raw or "").strip()
                 kind = node.kind if node.kind in ("external", "unresolved") else "unresolved"
                 if raw:
                     warnings.append(SolverWarning(course=target_course, raw=raw, kind=kind))
-                model += z == 1, f"sat_leaf_ignored_{target_course}_{s}_{id(node)%10_000_000}"
+                model += z == 1, _uniq(f"sat_leaf_ignored_{target_course}_{s}_{node_tag}")
                 return z
 
             if node.code not in allowed_semesters:
-                # prereq not in plan/model → ignore but warn
                 warnings.append(SolverWarning(course=target_course, raw=node.code, kind="missing_course"))
-                model += z == 1, f"sat_leaf_missing_{target_course}_{s}_{id(node)%10_000_000}"
+                model += z == 1, _uniq(f"sat_leaf_missing_{target_course}_{s}_{node_tag}")
                 return z
 
             before = scheduled_before_expr(x, allowed_semesters, node.code, s)
             # before is 0/1, enforce z == before
-            model += z <= before, f"sat_leaf_le_{target_course}_{node.code}_{s}"
-            model += z >= before, f"sat_leaf_ge_{target_course}_{node.code}_{s}"
+            # ---- Include node_tag AND run through _uniq ----
+            model += z <= before, _uniq(f"sat_leaf_le_{target_course}_{node.code}_{s}_{node_tag}")
+            model += z >= before, _uniq(f"sat_leaf_ge_{target_course}_{node.code}_{s}_{node_tag}")
             return z
 
         # ---- AND ----
         if isinstance(node, ReqAnd):
             items = node.items
             if not items:
-                model += z == 1, f"sat_and_empty_{target_course}_{s}_{id(node)%10_000_000}"
+                model += z == 1, _uniq(f"sat_and_empty_{target_course}_{s}_{node_tag}")
                 return z
             child_zs = [sat(ch, s) for ch in items]
             for i, cz in enumerate(child_zs):
-                model += z <= cz, f"sat_and_le_{target_course}_{s}_{id(node)%10_000_000}_{i}"
-            model += z >= lpSum(child_zs) - (len(child_zs) - 1), f"sat_and_ge_{target_course}_{s}_{id(node)%10_000_000}"
+                model += z <= cz, _uniq(f"sat_and_le_{target_course}_{s}_{node_tag}_{i}")
+            model += z >= lpSum(child_zs) - (len(child_zs) - 1), _uniq(
+                f"sat_and_ge_{target_course}_{s}_{node_tag}"
+            )
             return z
 
         # ---- OR ----
         if isinstance(node, ReqOr):
             items = node.items
             if not items:
-                model += z == 1, f"sat_or_empty_{target_course}_{s}_{id(node)%10_000_000}"
+                model += z == 1, _uniq(f"sat_or_empty_{target_course}_{s}_{node_tag}")
                 return z
             child_zs = [sat(ch, s) for ch in items]
             for i, cz in enumerate(child_zs):
-                model += z >= cz, f"sat_or_ge_{target_course}_{s}_{id(node)%10_000_000}_{i}"
-            model += z <= lpSum(child_zs), f"sat_or_le_{target_course}_{s}_{id(node)%10_000_000}"
+                model += z >= cz, _uniq(f"sat_or_ge_{target_course}_{s}_{node_tag}_{i}")
+            model += z <= lpSum(child_zs), _uniq(f"sat_or_le_{target_course}_{s}_{node_tag}")
             return z
 
         # fallback safety
         warnings.append(SolverWarning(course=target_course, raw=str(type(node)), kind="unresolved"))
-        model += z == 1, f"sat_unknown_{target_course}_{s}_{id(node)%10_000_000}"
+        model += z == 1, _uniq(f"sat_unknown_{target_course}_{s}_{node_tag}")
         return z
 
     # Enforce root satisfaction when target is placed in semester s
     for s in allowed_semesters[target_course]:
-        model += x[target_course][s] <= sat(prereq_tree, s), f"prereq_ir_{target_course}_{s}"
+        model += x[target_course][s] <= sat(prereq_tree, s), _uniq(f"prereq_ir_{target_course}_{s}")
 
 
 # -----------------------------
@@ -259,8 +270,43 @@ def build_model(
     return model, x, warnings
 
 
+def _default_allowed_semesters_for_code(
+    *,
+    code: str,
+    meta_courses: dict,
+    total_semesters: int,
+    semesters_per_year: Optional[int],
+) -> List[int]:
+    """
+    Safe default offerings when a course has no explicit offerings yet.
+    Policy:
+      - if metadata has academic_year and semesters_per_year is known (or assumed 2), allow that year's semester window
+      - otherwise allow all semesters (1..total_semesters)
+    """
+    sp = semesters_per_year or 2  # safe default if user didn't configure plan structure
+    m = meta_courses.get(str(code), {})
+    if not isinstance(m, dict):
+        m = {}
+
+    y_raw = m.get("academic_year")
+    try:
+        y = int(y_raw) if y_raw is not None and str(y_raw).strip() != "" else None
+    except Exception:
+        y = None
+
+    if y is None or y < 1:
+        return list(range(1, total_semesters + 1))
+
+    start = (y - 1) * sp + 1
+    end = min(total_semesters, y * sp)
+    if start > total_semesters:
+        return list(range(1, total_semesters + 1))
+
+    return list(range(start, end + 1))
+
+
 # -----------------------------
-# Inputs from DB (legacy offerings/credits, prereqs from catalog IR)
+# Inputs from DB 
 # -----------------------------
 
 def build_inputs_from_plan(plan_id: int) -> Dict:
@@ -268,56 +314,138 @@ def build_inputs_from_plan(plan_id: int) -> Dict:
     Load data from the database for a given DegreePlan and convert it into
     the exact dictionaries that build_model(...) expects.
 
-    rules:
-    - Offerings & credits are still legacy (Course + CourseOffering)
-    - Prereqs in solver come from catalog prereq_text -> IR at solve-time
-    - external/unresolved leaves are ignored by solver but surfaced as warnings
+    - Courses/credits come from PlanCourse -> CatalogCourse (source of truth)
+    - If a PlanCourse isn't linked to a legacy Course yet, we auto-create the legacy Course row
+      and default offerings, then link it (so existing UI keeps working).
+    - Prereqs in solver come from catalog prereq_text -> IR at solve-time (unchanged)
     """
     # Lazy imports to avoid circular imports
+    from extensions import db
     from models.degree_plan import DegreePlan
+    from models.plan_course import PlanCourse
+    from models.catalog_course import CatalogCourse
     from models.course import Course
+    from models.course_offering import CourseOffering
     from models.plan_constraint import PlanConstraint
+    from services.catalog_meta import load_catalog_meta
 
-    # 1) Get the plan
     plan = DegreePlan.query.get(plan_id)
     if plan is None:
         raise ValueError(f"DegreePlan with id={plan_id} not found")
 
-    # 2) Legacy courses for this plan (still used for offerings + credits this week)
-    course_rows: List[Course] = (
-        Course.query
-        .filter_by(degree_plan_id=plan.id)
-        .order_by(Course.id)
-        .all()
-    )
-    if not course_rows:
-        raise ValueError(f"No courses defined for plan_id={plan_id}")
-
-    courses: List[str] = [c.code for c in course_rows]
-    credits: Dict[str, int] = {c.code: c.credits for c in course_rows}
-
-    # 3) Constraints
     constraints: Optional[PlanConstraint] = PlanConstraint.query.filter_by(
         degree_plan_id=plan.id
     ).first()
 
     total_semesters = constraints.total_semesters if (constraints and constraints.total_semesters) else 6
-    default_max_credits = constraints.max_credits_per_semester if (constraints and constraints.max_credits_per_semester) else 9999
+    default_max_credits = (
+        constraints.max_credits_per_semester
+        if (constraints and constraints.max_credits_per_semester)
+        else 9999
+    )
+    semesters_per_year = constraints.semesters_per_year if constraints else None
 
     max_credits_per_semester: Dict[int, int] = {
         s: default_max_credits for s in range(1, total_semesters + 1)
     }
 
-    # 4) Allowed semesters from legacy offerings
-    allowed_semesters: Dict[str, List[int]] = {c.code: [] for c in course_rows}
-    for c in course_rows:
-        for off in c.offerings:
-            allowed_semesters[c.code].append(off.semester_number)
+    # ---- source of truth: PlanCourse -> CatalogCourse ----
+    plan_courses = (
+        PlanCourse.query
+        .filter_by(plan_id=plan.id)
+        .join(CatalogCourse, PlanCourse.catalog_course_id == CatalogCourse.id)
+        .order_by(CatalogCourse.code.asc())
+        .all()
+    )
+    if not plan_courses:
+        raise ValueError(f"No courses defined for plan_id={plan_id}")
 
-    for code in allowed_semesters:
-        allowed_semesters[code] = sorted(set(allowed_semesters[code]))
+    # metadata used only for default offerings window
+    meta = load_catalog_meta()
+    meta_courses = meta.get("courses") or {}
 
-    # 5) Build prereq IR trees from catalog prereq_text
+    # ---- Ensure every PlanCourse has a legacy Course row ----
+    created_any = False
+    for pc in plan_courses:
+        if pc.legacy_course_id:
+            continue
+
+        code = str(pc.catalog_course.code).strip()
+        name = pc.catalog_course.name
+        cat_credits = pc.catalog_course.credits
+
+        # legacy Course.credits is Integer in your model, so store safely.
+        # (solver can still use float credits from catalog, DB legacy stays int)
+        legacy_credits_int = 0
+        try:
+            if cat_credits is not None:
+                legacy_credits_int = int(float(cat_credits))
+        except Exception:
+            legacy_credits_int = 0
+
+        legacy = Course.query.filter_by(degree_plan_id=plan.id, code=code).first()
+        if legacy is None:
+            legacy = Course(
+                degree_plan_id=plan.id,
+                code=code,
+                name=name,
+                credits=legacy_credits_int,
+                difficulty=None,
+            )
+            db.session.add(legacy)
+            db.session.flush()
+
+            # default offerings (only for brand-new legacy course)
+            allowed = _default_allowed_semesters_for_code(
+                code=code,
+                meta_courses=meta_courses,
+                total_semesters=total_semesters,
+                semesters_per_year=semesters_per_year,
+            )
+            for s in allowed:
+                db.session.add(CourseOffering(course_id=legacy.id, semester_number=int(s)))
+
+        pc.legacy_course_id = legacy.id
+        created_any = True
+
+    if created_any:
+        db.session.commit()
+
+    # ---- Build solver inputs from PlanCourse ----
+    courses: List[str] = [str(pc.catalog_course.code).strip() for pc in plan_courses]
+
+    # credits: prefer catalog float, fall back to legacy int if missing
+    credits: Dict[str, Any] = {}
+    for pc in plan_courses:
+        code = str(pc.catalog_course.code).strip()
+        if pc.catalog_course.credits is not None:
+            credits[code] = float(pc.catalog_course.credits)
+        elif pc.legacy_course is not None:
+            credits[code] = pc.legacy_course.credits
+        else:
+            credits[code] = 0
+
+    # allowed semesters: from offerings if present, otherwise default window
+    allowed_semesters: Dict[str, List[int]] = {}
+    for pc in plan_courses:
+        code = str(pc.catalog_course.code).strip()
+        sems: List[int] = []
+        if pc.legacy_course is not None:
+            for off in pc.legacy_course.offerings:
+                sems.append(int(off.semester_number))
+
+        sems = sorted(set(sems))
+        if not sems:
+            sems = _default_allowed_semesters_for_code(
+                code=code,
+                meta_courses=meta_courses,
+                total_semesters=total_semesters,
+                semesters_per_year=semesters_per_year,
+            )
+
+        allowed_semesters[code] = sems
+
+    # ---- Build prereq IR trees from catalog prereq_text (unchanged) ----
     catalog = load_catalog(Config.CATALOG_DIR)
     ext_rules = load_external_rules(Config.EXTERNAL_RULES_PATH)
     alias_rules = load_aliases_csv(Config.ALIASES_CSV_PATH)
