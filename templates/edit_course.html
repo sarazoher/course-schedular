@@ -35,19 +35,6 @@
              required>
     </div>
 
-    <div class="mb-3">
-      <label for="difficulty" class="form-label">Difficulty (optional)</label>
-      <input type="number"
-             id="difficulty"
-             name="difficulty"
-             min="1"
-             value="{{ course.difficulty or '' }}"
-             class="form-control">
-      <small class="text-muted">
-        Leave blank if you’re not using difficulty yet.
-      </small>
-    </div>
-
     <button type="submit" class="btn btn-primary">Save changes</button>
     <a href="{{ url_for('main.view_plan', plan_id=plan.id) }}" class="btn btn-secondary">
       Cancel

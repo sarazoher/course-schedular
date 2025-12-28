@@ -23,8 +23,25 @@ from services.catalog_meta import load_catalog_meta
 from utils.semesters import format_semester_label
 from utils.optional_courses import get_optional_course_codes
 
-optional_codes = get_optional_course_codes
-    
+def _dedupe_warnings(warnings: list[Any]) -> list[Any]:
+    seen: set[tuple[str, str, str]] = set()
+    out: list[Any] = []
+    for w in warnings or []:
+        if isinstance(w, dict):
+            course = str(w.get("course") or "").strip()
+            kind = str(w.get("kind") or w.get("type") or "").strip()
+            raw = str(w.get("raw") or w.get("message") or w.get("detail") or "").strip()
+            key = (course, kind, raw)
+        else:
+            key = ("", "", str(w))
+
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(w)
+    return out
+
+
 def _save_latest_solution(
     *,
     plan_id: int,
@@ -195,6 +212,7 @@ def solve_plan(plan_id: int):
     status: str = result.get("status", "error")
     schedule: dict[str, Optional[int]] = result.get("schedule", {})  # course_code -> semester
     warnings: list[dict[str, Any]] = result.get("warnings", [])
+    warnings = _dedupe_warnings(warnings)
 
     semesters = sorted(inputs["max_credits_per_semester"].keys())
     semesters_per_year = pc.semesters_per_year if pc and pc.semesters_per_year else None

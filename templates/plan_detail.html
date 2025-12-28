@@ -53,12 +53,26 @@
 
   {% if unlinked_count and unlinked_count > 0 %}
     <div class="alert alert-warning mt-3" role="alert">
-      <strong>{{ unlinked_count }}</strong> course(s) were added from the catalog but are <strong>not linked</strong> to legacy Course row yet.
-      The solver currently schedules only legacy courses,so these will be <strong>ignored</strong> until migration and linking is implemented. (wii be soon)
+      <div class="fw-semibold">Some courses are not fully linked yet</div>
+      <div class="small">
+        <strong>{{ unlinked_count }}</strong> course(s) were added from the catalog but don’t have a linked legacy “details” entry,
+        so <em>Edit &amp; details</em> is unavailable for them.
+        Scheduling uses catalog course codes; see <strong>Schedule → Warnings</strong> for any prerequisite notes.
+      </div>
     </div>
   {% endif %}
 
+
   <h4 class="mt-4 mb-2">Courses in this plan</h4>
+
+  <div class="alert alert-info mt-3" role="alert">
+    <div class="fw-semibold">How prerequisites and offerings work</div>
+    <div class="small">
+      Prerequisites and corequisites are derived from the catalog and enforced at solve-time when resolvable.
+      See <strong>Schedule → Warnings</strong> for prerequisites that were recorded but not enforced.
+      Offerings are used to determine which semesters a course is allowed in.
+    </div>
+  </div>
 
   {% if plan_courses %}
     <div class="card mb-4">
@@ -146,6 +160,7 @@
   <div class="card mb-4">
     <div class="card-header">
       Bulk add from catalog
+      Uses the current selected degree: {{ selected_degree }}.
     </div>
 
     <div class="card-body">
@@ -266,20 +281,6 @@
               min="0"
               step="0.5"
               required
-            >
-          </div>
-
-          <div class="col-md-2 mb-3">
-            <label for="difficulty" class="form-label">
-              Difficulty (optional)
-            </label>
-            <input
-              type="number"
-              class="form-control"
-              id="difficulty"
-              name="difficulty"
-              min="1"
-              max="5"
             >
           </div>
         </div>

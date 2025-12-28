@@ -50,10 +50,22 @@
       {% if warnings_list %}
         <ul class="mb-0">
           {% for w in warnings_list %}
-            {# Keep it generic: show best-effort fields #}
             <li>
               {% if w is mapping %}
-                {{ w.get("message") or w.get("detail") or w.get("type") or (w|string) }}
+                <strong>{{ w.get("course") or "?" }}</strong>
+                {% if w.get("kind") %}
+                  — <span class="text-muted">{{ w.get("kind") }}</span>
+                {% endif %}
+
+                {% if w.get("raw") %}
+                  <div class="text-muted">
+                    <code>{{ w.get("raw") }}</code>
+                  </div>
+                {% elif w.get("message") or w.get("detail") %}
+                  <div class="text-muted">
+                    {{ w.get("message") or w.get("detail") }}
+                  </div>
+                {% endif %}
               {% else %}
                 {{ w }}
               {% endif %}
@@ -127,9 +139,6 @@
 
                     <small class="text-muted">
                       Credits: {{ course.credits | default('') }}
-                      {% if course.difficulty is not none and course.difficulty != '' %}
-                        • Difficulty: {{ course.difficulty }}
-                      {% endif %}
                     </small>
 
                     {% if course.coreq_text %}

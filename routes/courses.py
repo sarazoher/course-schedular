@@ -72,8 +72,6 @@ def add_course(plan_id: int):
         name = (request.form.get("name") or "").strip()
         credits_raw = (request.form.get("credits") or "").strip()
 
-    difficulty_raw = (request.form.get("difficulty") or "").strip()
-
     if not code or not name:
         flash("Course code and name are required.", "error")
         return redirect(url_for("main.view_plan", plan_id=plan.id))
@@ -113,20 +111,6 @@ def add_course(plan_id: int):
         flash(f"Course {code} already exists in this plan.", "error")
         return redirect(url_for("main.view_plan", plan_id=plan.id))
 
-    # Difficulty (optional)
-    difficulty = None
-    if difficulty_raw:
-        try:
-            diff_val = int(difficulty_raw)
-        except ValueError:
-            flash("Difficulty must be a number between 1 and 5.", "error")
-            return redirect(url_for("main.view_plan", plan_id=plan.id))
-
-        if diff_val < 1 or diff_val > 5:
-            flash("Difficulty must be between 1 and 5.", "error")
-            return redirect(url_for("main.view_plan", plan_id=plan.id))
-
-        difficulty = diff_val
 
     # Create legacy Course (bridge) if not exists
     legacy = Course.query.filter_by(degree_plan_id=plan.id, code=code).first()
@@ -136,7 +120,6 @@ def add_course(plan_id: int):
             code=code,
             name=name,
             credits=credits_val,
-            difficulty=difficulty,
         )
         db.session.add(legacy)
         db.session.flush()  # ensures legacy.id is available without committing yet
@@ -178,7 +161,6 @@ def edit_course(plan_id: int, course_id: int):
         code = (request.form.get("code") or "").strip()
         name = (request.form.get("name") or "").strip()
         credits_raw = (request.form.get("credits") or "").strip()
-        difficulty_raw = (request.form.get("difficulty") or "").strip()
 
         if not code or not name:
             flash("Course code and name are required.", "error")
@@ -199,20 +181,6 @@ def edit_course(plan_id: int, course_id: int):
             flash("Credit must be positive.", "error")
             return redirect(url_for("main.edit_course", plan_id=plan.id, course_id=course.id))
         
-        # 5) Difficulty (optional)
-        difficulty_val = None
-        if difficulty_raw:
-            try:
-                diff = int(difficulty_raw)
-            except ValueError:
-                flash("Difficulty must be a number between 1 and 5.", "error")
-                return redirect(url_for("main.edit_course", plan_id=plan.id, course_id=course.id))
-
-            if diff < 1 or diff > 5:
-                flash("Difficulty must be between 1 and 5.", "error")
-                return redirect(url_for("main.edit_course", plan_id=plan.id, course_id=course.id))
-
-            difficulty_val = diff
 
 
         # ensure codes are unique within this plan (excluding this course)
@@ -232,7 +200,6 @@ def edit_course(plan_id: int, course_id: int):
         course.code = code
         course.name = name
         course.credits = credits_val
-        course.difficulty = difficulty_val
 
         # Upsert/update global catalog
         catalog = CatalogCourse.query.filter_by(code=code).first()
@@ -343,27 +310,12 @@ def edit_offerings(plan_id: int, course_id: int):
         flash("Offerings updated.", "success")
 
         # Back to the unified course page with tabs
-        return redirect(
-            url_for("main.course_detail", plan_id=plan.id, course_id=course.id)
-        )
+        return redirect(url_for("main.course_detail", plan_id=plan.id, course_id=course.id))
 
     # GET: we don't show a separate offerings page anymore,
     # just redirect to the course detail (Offerings tab is there)
-    return redirect(
-        url_for("main.course_detail", plan_id=plan.id, course_id=course.id)
-    )
-    
-    # GET: collect currently selected semesters
-    # assumes a relationship Course.offerings exists
-    existing_semesters = {o.semester_number for o in course.offerings}
+    return redirect(url_for("main.course_detail", plan_id=plan.id, course_id=course.id))
 
-    return render_template(
-        "edit_offerings.html",
-        plan=plan,
-        course=course,
-        total_semesters=total_semesters,
-        selected_semesters=existing_semesters,
-    )
 """ 
 In function above, every branch here either
         →   aborts with 404
