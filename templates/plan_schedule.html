@@ -32,7 +32,7 @@
          {% if status == 'Optimal' %}solver-ok
          {% elif status == 'Infeasible' %}solver-bad
          {% else %}solver-unknown{% endif %}"
-    > 
+    >
       {{ status }}
     </span>
   </p>
@@ -42,8 +42,28 @@
 
   <div class="card mb-3">
     <div class="card-header d-flex justify-content-between align-items-center">
-      <span>Warnings</span>
-      <span class="badge bg-secondary">{{ warnings_list|length }}</span>
+      <!-- Upgraded warnings (count + affected courses + kind breakdown if provided) -->
+      <div>
+        <span>Warnings</span>
+
+        {% if warnings_list and warnings_list|length %}
+          <span class="badge bg-warning text-dark ms-2">{{ warnings_list|length }}</span>
+
+          {% if warn_courses is defined %}
+            <span class="text-muted small ms-2">({{ warn_courses|length }} courses)</span>
+          {% endif %}
+        {% else %}
+          <span class="badge bg-secondary ms-2">0</span>
+        {% endif %}
+      </div>
+
+      {% if warn_counts_by_kind is defined and warn_counts_by_kind %}
+        <div class="small text-muted">
+          {% for k, v in warn_counts_by_kind.items() %}
+            <span class="ms-2">{{ k }}: {{ v }}</span>
+          {% endfor %}
+        </div>
+      {% endif %}
     </div>
 
     <div class="card-body small">
@@ -130,6 +150,12 @@
                       <div>
                         <strong>{{ course.code | default('') }}</strong>
                         — {{ course.name | default('') }}
+
+                        <!-- ⚠ marker if this course has warnings -->
+                        {% set code_s = (course.code|string) %}
+                        {% if warn_courses is defined and code_s in warn_courses %}
+                          <span class="badge bg-warning text-dark ms-2" title="Has prerequisite/catalog warnings">⚠</span>
+                        {% endif %}
                       </div>
 
                       {% if optional_codes is defined and (course.code|string) in optional_codes %}

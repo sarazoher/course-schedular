@@ -119,6 +119,21 @@ def view_saved_schedule(plan_id: int):
 
     optional_codes = get_optional_course_codes()
 
+    # Collect which courses have warnings (for schedule highlighting + counts)
+    warn_courses: set[str] = set()
+    warn_counts_by_kind: dict[str, int] = {}
+
+    for w in warnings or []:
+        if isinstance(w, dict):
+            c = str(w.get("course") or "").strip()
+            if c:
+                warn_courses.add(c)
+
+            kind = str(w.get("kind") or w.get("type") or "").strip() or "warning"
+            warn_counts_by_kind[kind] = warn_counts_by_kind.get(kind, 0) + 1
+        else:
+            warn_counts_by_kind["warning"] = warn_counts_by_kind.get("warning", 0) + 1
+
     return render_template(
         "plan_schedule.html",
         plan=plan,
@@ -128,8 +143,10 @@ def view_saved_schedule(plan_id: int):
         courses_by_semester=courses_by_semester,
         infeasible_hints=payload.get("infeasible_hints", []),
         warnings=warnings,
-        meta=meta,
+        warn_courses=warn_courses,
+        warn_counts_by_kind=warn_counts_by_kind,
         optional_codes=optional_codes,
+        meta=meta,
     )
 
 
