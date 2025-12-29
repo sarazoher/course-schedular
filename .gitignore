@@ -70,4 +70,5 @@ data_catalog/
 *.xlsx
 *.xls
 
-notes.md 
+
+requirements-dev.txt

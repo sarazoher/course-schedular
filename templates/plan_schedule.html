@@ -40,6 +40,19 @@
   {% set warnings_list = warnings | default([]) %}
   {% set meta = meta | default({}) %}
 
+  {# Display-only mapping for reviewer-friendly warning text (no logic changes) #}
+  {% set WARNING_LABELS = {
+    "unresolved": "Unresolved prerequisite",
+    "missing_course": "Missing prerequisite course",
+    "external": "External requirement"
+  } %}
+
+  {% set WARNING_EXPLAINS = {
+    "unresolved": "This prerequisite could not be fully resolved from catalog text. It was recorded but not enforced.",
+    "missing_course": "The catalog references a prerequisite course code that is not currently included in this plan.",
+    "external": "This course has a prerequisite outside the plan (e.g., service/external requirement)."
+  } %}
+
   <div class="card mb-3">
     <div class="card-header d-flex justify-content-between align-items-center">
       <!-- Upgraded warnings (count + affected courses + kind breakdown if provided) -->
@@ -60,7 +73,8 @@
       {% if warn_counts_by_kind is defined and warn_counts_by_kind %}
         <div class="small text-muted">
           {% for k, v in warn_counts_by_kind.items() %}
-            <span class="ms-2">{{ k }}: {{ v }}</span>
+            {% set label = WARNING_LABELS.get(k, k|replace("_", " ")|title) %}
+            <span class="ms-2">{{ label }}: {{ v }}</span>
           {% endfor %}
         </div>
       {% endif %}
@@ -70,20 +84,33 @@
       {% if warnings_list %}
         <ul class="mb-0">
           {% for w in warnings_list %}
-            <li>
+            <li class="mb-2">
               {% if w is mapping %}
-                <strong>{{ w.get("course") or "?" }}</strong>
-                {% if w.get("kind") %}
-                  — <span class="text-muted">{{ w.get("kind") }}</span>
+                {% set course = w.get("course") or "?" %}
+                {% set kind = w.get("kind") or w.get("type") or "" %}
+                {% set raw = w.get("raw") %}
+                {% set msg = w.get("message") or w.get("detail") %}
+                {% set label = WARNING_LABELS.get(kind, kind|replace("_", " ")|title if kind else "") %}
+                {% set explain = WARNING_EXPLAINS.get(kind) %}
+
+                <div>
+                  <strong>{{ course }}</strong>
+                  {% if label %}
+                    — <span class="text-muted">{{ label }}</span>
+                  {% endif %}
+                </div>
+
+                {% if explain %}
+                  <div class="text-muted">{{ explain }}</div>
                 {% endif %}
 
-                {% if w.get("raw") %}
+                {% if raw %}
                   <div class="text-muted">
-                    <code>{{ w.get("raw") }}</code>
+                    <code>{{ raw }}</code>
                   </div>
-                {% elif w.get("message") or w.get("detail") %}
+                {% elif msg %}
                   <div class="text-muted">
-                    {{ w.get("message") or w.get("detail") }}
+                    {{ msg }}
                   </div>
                 {% endif %}
               {% else %}
@@ -98,13 +125,15 @@
     </div>
   </div>
 
+
   {% set hints = infeasible_hints | default([]) %}
 
   {% if status != 'Optimal' %}
     <div class="alert alert-warning" role="alert">
       <div class="fw-semibold">No valid schedule could be produced.</div>
       <div class="mt-1">
-        The solver couldn't find a feasible solution under your current offerings + settings.
+        The solver could not find a feasible schedule under the current plan configuration.
+        This usually happens when course availability, prerequisites, or plan limits conflict.
       </div>
 
       {% if hints %}
@@ -119,14 +148,19 @@
         <div class="fw-semibold mb-1">What to try next</div>
         <ul class="mb-0">
           <li>
-            Review offerings and prerequisites in
-            <a href="{{ url_for('main.view_plan', plan_id=plan.id) }}">the plan page</a>.
+            Review <strong>Schedule → Warnings</strong> to see which prerequisites were recorded but not enforceable.
           </li>
           <li>
-            Adjust total semesters / max credits / solver flags in
+            Adjust credit limits, semester count, or other constraints in
             <a href="{{ url_for('main.plan_settings', plan_id=plan.id) }}">Plan settings</a>.
           </li>
+          <li>
+            If courses are restricted to specific semesters, verify their availability assumptions.
+          </li>
         </ul>
+      </div>
+      <div class="text-muted mt-2">
+        Infeasible plans do not indicate an error — they indicate that the current constraints cannot all be satisfied at once.
       </div>
     </div>
   {% else %}
