@@ -56,7 +56,7 @@
       <div class="fw-semibold">Some courses are not fully linked yet</div>
       <div class="small">
         <strong>{{ unlinked_count }}</strong> course(s) were added from the catalog but don't have an editable details record,
-        so <em>Edit &amp; details</em> is unavailable for them.
+        so <em>Edit &amp; details</em> is unavailable for them.<br>
         Scheduling uses catalog course codes; see <strong>Schedule → Warnings</strong> for any prerequisite notes.
       </div>
     </div>
@@ -68,8 +68,8 @@
   <div class="alert alert-info mt-3" role="alert">
     <div class="fw-semibold">How prerequisites and offerings work</div>
     <div class="small">
-      Prerequisites and corequisites are derived from the catalog and enforced at solve-time when resolvable.
-      See <strong>Schedule → Warnings</strong> for prerequisites that were recorded but not enforced.
+      Prerequisites and corequisites are derived from the catalog and enforced at solve-time when resolvable.<br>
+      See <strong>Schedule → Warnings</strong> for prerequisites that were recorded but not enforced.<br>
       Offerings are used to determine which semesters a course is allowed in.
     </div>
   </div>
@@ -176,7 +176,7 @@
             {% endfor %}
           </select>
           <small class="text-muted">
-            Elective (optional) courses are still filtered by the selected year.
+            Elective (optional) courses are still filtered by the selected year.<br>
             Select “All years” to include electives from any year.
           </small>
         </div>
@@ -202,7 +202,8 @@
           </div>
 
         <div class="small text-muted">
-          <strong>Note:</strong> Optional is inferred from course code: <code>850…</code> mandatory, <code>851…</code> optional; other degrees treated as optional by default.
+          <strong>Note:</strong> Optional is inferred from course code: <code>850…</code> mandatory, <code>851…</code> elective.
+           → By default, other degrees treated as optional.
         </div>
       </form>
     </div>

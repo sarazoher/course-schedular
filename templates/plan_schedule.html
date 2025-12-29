@@ -132,7 +132,7 @@
     <div class="alert alert-warning" role="alert">
       <div class="fw-semibold">No valid schedule could be produced.</div>
       <div class="mt-1">
-        The solver could not find a feasible schedule under the current plan configuration.
+        The solver could not find a feasible schedule under the current plan configuration.<br>
         This usually happens when course availability, prerequisites, or plan limits conflict.
       </div>
 
@@ -183,7 +183,7 @@
                 {% for course in bucket %}
                   {% set code_s = (course.code|string) %}
                   {% set m = (catalog_meta_courses.get(code_s) if catalog_meta_courses is defined else None) %}
-                  <!-- meta debug: {{ m }} -->
+
                   <li class="list-group-item">
                     <div class="d-flex justify-content-between align-items-start">
                       <div class="d-flex align-items-center gap-2">
