@@ -191,15 +191,11 @@ def bulk_add_courses_v2(plan_id: int):
                 skipped_year += 1
                 continue
 
-        # Mandatory-only means: include only 850... (non-optional)
-        if mandatory_only and is_optional_by_code(code):
+        # Optional courses are excluded unless explicitly included
+        if is_optional_by_code(code) and (not include_optional):
             skipped_optional += 1
             continue
 
-        # Optional exclusion by default unless explicitly included
-        if (not include_optional) and is_optional_by_code(code):
-            skipped_optional += 1
-            continue
 
         # Skip duplicates already in plan
         if c.id in existing_catalog_ids:
@@ -217,21 +213,35 @@ def bulk_add_courses_v2(plan_id: int):
     if to_add:
         db.session.add_all(to_add)
         db.session.commit()
+
         flash(f"Bulk import added {len(to_add)} courses.", "success")
+
+        # Show skipped breakdown ONLY when something was added
+        total_skipped = skipped_existing + skipped_optional + skipped_degree + skipped_year
+        if total_skipped > 0:
+            total_skipped = (
+                skipped_existing +
+                skipped_optional +
+                skipped_degree +
+                skipped_year
+            )
+
+        if total_skipped > 0:
+            flash(
+                "Skipped — "
+                f"already in plan: {skipped_existing}, "
+                f"optional excluded: {skipped_optional}, "
+                f"degree filter: {skipped_degree}, "
+                f"year filter: {skipped_year}.",
+                "secondary",
+            )
+
     else:
         flash(
-            "Bulk import: nothing to add. Try loosening filters (e.g., set year to “All years” or enable optional courses).",
+            "Bulk import: nothing to add. Try loosening filters "
+            "(e.g., set year to “All years” or enable optional courses).",
             "info",
         )
-
-    flash(
-        "Skipped — "
-        f"already in plan: {skipped_existing}, "
-        f"optional excluded: {skipped_optional}, "
-        f"degree filter: {skipped_degree}, "
-        f"year filter: {skipped_year}.",
-        "secondary",
-    )
 
     return redirect(url_for("main.view_plan", plan_id=plan.id, degree=selected_degree))
 

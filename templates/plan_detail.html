@@ -168,7 +168,7 @@
         <input type="hidden" name="degree" value="{{ selected_degree }}">
 
         <div class="col-md-3 mb-3">
-          <label class="form-label" for="bulk_year">Recommended year (optional)</label>
+          <label class="form-label" for="bulk_year">Recommended year (filter)</label>
           <select class="form-select" id="bulk_year" name="year">
             <option value="">All years</option>
             {% for y in available_years | default([]) %}
@@ -176,7 +176,8 @@
             {% endfor %}
           </select>
           <small class="text-muted">
-            Optional courses are still filtered by year. Select “All years” to include optional courses from any year.
+            Elective (optional) courses are still filtered by the selected year.
+            Select “All years” to include electives from any year.
           </small>
         </div>
 
@@ -199,10 +200,9 @@
               Bulk add
             </button>
           </div>
-        </div>
 
         <div class="small text-muted">
-          Optional is inferred from course code: <code>850…</code> mandatory, <code>851…</code> optional; other degrees treated as optional by default.
+          <strong>Note:</strong> Optional is inferred from course code: <code>850…</code> mandatory, <code>851…</code> optional; other degrees treated as optional by default.
         </div>
       </form>
     </div>
@@ -233,9 +233,9 @@
       </div>
 
       <div class="mb-3">
-        <label for="catalog_pick" class="form-label">Pick from catalog (optional)</label>
+        <label for="catalog_pick" class="form-label">Catalog course (optional)</label>
         <select class="form-select" id="catalog_pick" name="catalog_pick">
-          <option value="">— Choose a canonical course —</option>
+          <option value="">— Add Course From Catalog —</option>
           {% for c in catalog_courses %}
             <option value="{{ c.code }}||{{ c.name }}||{{ c.credits }}">
               {{ c.code }} — {{ c.name }} ({{ c.credits }})
@@ -243,7 +243,9 @@
           {% endfor %}
         </select>
         <div class="form-text">
-          Selecting a catalog course will fill Code/Name/Credits below.
+          Select a catalog course to auto-fill fields and preview official metadata.
+          Leave blank to enter a custom course manually.
+
         </div>
 
         <div id="catalog_meta_preview" class="mt-2 small text-muted">

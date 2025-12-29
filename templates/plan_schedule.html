@@ -183,7 +183,7 @@
                 {% for course in bucket %}
                   {% set code_s = (course.code|string) %}
                   {% set m = (catalog_meta_courses.get(code_s) if catalog_meta_courses is defined else None) %}
-
+                  <!-- meta debug: {{ m }} -->
                   <li class="list-group-item">
                     <div class="d-flex justify-content-between align-items-start">
                       <div class="d-flex align-items-center gap-2">
@@ -229,27 +229,27 @@
                       {# <span><strong>Credits:</strong> {{ course.credits | default('') }}</span> #}
 
                       {% if m %}
-                        {% if m.academic_year %}<span class="ms-2">• <strong>Year:</strong> {{ m.academic_year }}</span>{% endif %}
-                        {% if m.weekly_hours %}<span class="ms-2">• <strong>Hours:</strong> {{ m.weekly_hours }}</span>{% endif %}
-                        {% if m.lesson_type %}<span class="ms-2">• <strong>Type:</strong> {{ m.lesson_type }}</span>{% endif %}
-                        {% if m.lecturer %}<span class="ms-2">• <strong>Lecturer:</strong> {{ m.lecturer }}</span>{% endif %}
+                        {% if m.get("academic_year") %}<span class="ms-2">• <strong>Year:</strong> {{ m.get("academic_year") }}</span>{% endif %}
+                        {% if m.get("weekly_hours") %}<span class="ms-2">• <strong>Hours:</strong> {{ m.get("weekly_hours") }}</span>{% endif %}
+                        {% if m.get("lesson_type") %}<span class="ms-2">• <strong>Type:</strong> {{ m.get("lesson_type") }}</span>{% endif %}
+                        {% if m.get("lecturer") %}<span class="ms-2">• <strong>Lecturer:</strong> {{ m.get("lecturer") }}</span>{% endif %}
                       {% endif %}
                     </div>
 
-                    {% if m and m.prereq_text %}
+                    {% if m and m.get("prereq_text") %}
                       <div class="small text-muted mt-1">
-                        <strong>Prereqs (catalog, info):</strong> {{ m.prereq_text }}
+                        <strong>Prereqs (catalog, info):</strong> {{ m.get("prereq_text") }}
                       </div>
                     {% endif %}
 
-                    {% if m and m.coreq_text %}
+                    {% if m and m.get("coreq_text") %}
                       <div class="small text-muted mt-1">
-                        <strong>Coreqs (catalog, info):</strong> {{ m.coreq_text }}
+                        <strong>Coreqs (catalog, info):</strong> {{ m.get("coreq_text") }}
                       </div>
                     {% endif %}
 
                     {# Keep backward compat if course.coreq_text exists in your schedule objects #}
-                    {% if (not (m and m.coreq_text)) and course.coreq_text %}
+                    {% if (not (m and m.get("coreq_text"))) and course.coreq_text %}
                       <div class="small text-muted mt-1">
                         <strong>Coreqs (info):</strong> {{ course.coreq_text }}
                       </div>
