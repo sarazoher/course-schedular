@@ -55,7 +55,7 @@
     <div class="alert alert-warning mt-3" role="alert">
       <div class="fw-semibold">Some courses are not fully linked yet</div>
       <div class="small">
-        <strong>{{ unlinked_count }}</strong> course(s) were added from the catalog but don’t have a linked legacy “details” entry,
+        <strong>{{ unlinked_count }}</strong> course(s) were added from the catalog but don't have an editable details record,
         so <em>Edit &amp; details</em> is unavailable for them.
         Scheduling uses catalog course codes; see <strong>Schedule → Warnings</strong> for any prerequisite notes.
       </div>
@@ -167,16 +167,15 @@
       <form method="POST" action="{{ url_for('main.bulk_add_courses_v2', plan_id=plan.id) }}">
         <input type="hidden" name="degree" value="{{ selected_degree }}">
 
-        <div class="row">
-          <div class="col-md-3 mb-3">
-            <label class="form-label" for="bulk_year">Recommended year (optional)</label>
-            <select class="form-select" id="bulk_year" name="year">
-              <option value="">All years</option>
-              {% for y in available_years | default([]) %}
-                <option value="{{ y }}">{{ y }}</option>
-              {% endfor %}
-            </select>
-          </div>
+        <div class="col-md-3 mb-3">
+          <label class="form-label" for="bulk_year">Recommended year (optional)</label>
+          <select class="form-select" id="bulk_year" name="year">
+            <option value="">All years</option>
+            {% for y in available_years | default([]) %}
+              <option value="{{ y }}">{{ y }}</option>
+            {% endfor %}
+          </select>
+        </div>
 
           <div class="col-md-9 mb-3 d-flex align-items-end gap-4">
             <div class="form-check">

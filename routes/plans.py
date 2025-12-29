@@ -219,11 +219,17 @@ def bulk_add_courses_v2(plan_id: int):
         db.session.commit()
         flash(f"Bulk import added {len(to_add)} courses.", "success")
     else:
-        flash("Bulk import: nothing to add (filters too strict or already added).", "info")
+        flash(
+            "Bulk import: nothing to add. Try loosening filters (e.g., set year to “All years” or enable optional courses).",
+            "info",
+        )
 
     flash(
-        f"Skipped — existing: {skipped_existing}, optional: {skipped_optional}, "
-        f"degree: {skipped_degree}, year: {skipped_year}.",
+        "Skipped — "
+        f"already in plan: {skipped_existing}, "
+        f"optional excluded: {skipped_optional}, "
+        f"degree filter: {skipped_degree}, "
+        f"year filter: {skipped_year}.",
         "secondary",
     )
 
