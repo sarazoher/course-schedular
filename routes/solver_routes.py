@@ -119,6 +119,9 @@ def view_saved_schedule(plan_id: int):
 
     optional_codes = get_optional_course_codes()
 
+    catalog_meta = load_catalog_meta()
+    catalog_meta_courses = catalog_meta.get("courses") or {}
+
     # Collect which courses have warnings (for schedule highlighting + counts)
     warn_courses: set[str] = set()
     warn_counts_by_kind: dict[str, int] = {}
@@ -147,6 +150,7 @@ def view_saved_schedule(plan_id: int):
         warn_counts_by_kind=warn_counts_by_kind,
         optional_codes=optional_codes,
         meta=meta,
+        catalog_meta_courses=catalog_meta_courses,
     )
 
 

@@ -175,39 +175,86 @@
                 Semester {{ sem }}
               {% endif %}
             </div>
+            
             <ul class="list-group list-group-flush">
               {% set bucket = courses_by_semester.get(sem, []) %}
+
               {% if bucket %}
                 {% for course in bucket %}
+                  {% set code_s = (course.code|string) %}
+                  {% set m = (catalog_meta_courses.get(code_s) if catalog_meta_courses is defined else None) %}
+
                   <li class="list-group-item">
                     <div class="d-flex justify-content-between align-items-start">
-                      <div>
-                        <strong>{{ course.code | default('') }}</strong>
-                        — {{ course.name | default('') }}
+                      <div class="d-flex align-items-center gap-2">
+                        <span
+                          class="badge
+                            {% if optional_codes is defined and code_s in optional_codes %}
+                              bg-info-subtle text-dark border
+                            {% else %}
+                              bg-success-subtle text-dark border
+
+                            {% endif %}
+                          "
+                          style="min-width: 2.5rem; text-align: center;"
+                          title="Credits"
+                        >
+                          {{ course.credits | default('?') }}
+                        </span>
+
+
+                        <div>
+                          <strong>{{ course.code | default('') }}</strong>
+                          — {{ course.name | default('') }}
+                        </div>
 
                         <!-- ⚠ marker if this course has warnings -->
                         {% set code_s = (course.code|string) %}
                         {% if warn_courses is defined and code_s in warn_courses %}
-                          <span class="badge bg-warning text-dark ms-2" title="Has prerequisite/catalog warnings">⚠</span>
+                          <span
+                            class="badge bg-warning text-dark ms-2"
+                            title="See Schedule → Warnings"
+                          >⚠</span>
                         {% endif %}
                       </div>
 
-                      {% if optional_codes is defined and (course.code|string) in optional_codes %}
-                        <span class="badge bg-info text-dark">Optional</span>
+                      <div class="d-flex gap-2">
+                        {% if optional_codes is defined and code_s in optional_codes %}
+                          <span class="badge bg-info text-dark">Optional</span>
+                        {% endif %}
+                      </div>
+                    </div>
+
+                    <div class="small text-muted mt-1">
+                      {# <span><strong>Credits:</strong> {{ course.credits | default('') }}</span> #}
+
+                      {% if m %}
+                        {% if m.academic_year %}<span class="ms-2">• <strong>Year:</strong> {{ m.academic_year }}</span>{% endif %}
+                        {% if m.weekly_hours %}<span class="ms-2">• <strong>Hours:</strong> {{ m.weekly_hours }}</span>{% endif %}
+                        {% if m.lesson_type %}<span class="ms-2">• <strong>Type:</strong> {{ m.lesson_type }}</span>{% endif %}
+                        {% if m.lecturer %}<span class="ms-2">• <strong>Lecturer:</strong> {{ m.lecturer }}</span>{% endif %}
                       {% endif %}
                     </div>
 
-                    <small class="text-muted">
-                      Credits: {{ course.credits | default('') }}
-                    </small>
-
-                    {% if course.coreq_text %}
+                    {% if m and m.prereq_text %}
                       <div class="small text-muted mt-1">
-                        <strong>Coreq (info):</strong> {{ course.coreq_text }}
+                        <strong>Prereqs (catalog, info):</strong> {{ m.prereq_text }}
+                      </div>
+                    {% endif %}
+
+                    {% if m and m.coreq_text %}
+                      <div class="small text-muted mt-1">
+                        <strong>Coreqs (catalog, info):</strong> {{ m.coreq_text }}
+                      </div>
+                    {% endif %}
+
+                    {# Keep backward compat if course.coreq_text exists in your schedule objects #}
+                    {% if (not (m and m.coreq_text)) and course.coreq_text %}
+                      <div class="small text-muted mt-1">
+                        <strong>Coreqs (info):</strong> {{ course.coreq_text }}
                       </div>
                     {% endif %}
                   </li>
-
                 {% endfor %}
               {% else %}
                 <li class="list-group-item text-muted">
