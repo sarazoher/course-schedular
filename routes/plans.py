@@ -338,9 +338,10 @@ def plan_settings(plan_id: int):
                 return redirect(url_for("main.plan_settings", plan_id=plan.id))
 
         # ---- solver flags ----
-        enforce_prereqs_val = request.form.get("enforce_prereqs") == "on"
-        enforce_credit_limits_val = request.form.get("enforce_credit_limits") == "on"
-        minimize_last_semester_val = request.form.get("minimize_last_semester") == "on"
+        # Checkbox inputs only appear in request.form when checked.
+        enforce_prereqs_val = ("enforce_prereqs" in request.form)
+        enforce_credit_limits_val = ("enforce_credit_limits" in request.form)
+        minimize_last_semester_val = ("minimize_last_semester" in request.form)
 
         # persist
         pc.years = years_val

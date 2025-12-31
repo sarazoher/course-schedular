@@ -178,10 +178,32 @@ def solve_plan(plan_id: int):
     if plan is None:
         abort(404)
 
-    # Plan constraints (flags)
+# ------------------------------------------------------------
+# Solver behavior flags (Plan constraints)
+#
+# These flags come from PlanConstraint, which is persisted via
+# the Plan Settings page.
+#
+# Flow:
+#   Plan Settings (UI checkbox)
+#     → routes/plans.py (save to DB)
+#     → PlanConstraint fields
+#     → read here at solve-time
+#     → passed into services/solver.py
+#
+# If no constraint row exists yet, we default to the "safe"
+# behavior (all enforcement ON, prefer earlier completion).
+# ------------------------------------------------------------
     pc: Optional[PlanConstraint] = PlanConstraint.query.filter_by(degree_plan_id=plan.id).first()
     use_prereqs = True if pc is None else bool(pc.enforce_prereqs)
     use_credit_limits = True if pc is None else bool(pc.enforce_credit_limits)
+
+    # When True:
+    #   Solver minimizes the final semester used (finish ASAP),
+    #   then packs courses earlier within that horizon.
+    #
+    # When False:
+    #   Solver simply packs courses earlier overall.
     minimize_last_semester = True if pc is None else bool(pc.minimize_last_semester)
 
     # Build inputs from DB (keeping, still useful for prechecks and rendering payload)

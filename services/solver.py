@@ -189,7 +189,9 @@ def add_ir_prereq_constraints(
 # -----------------------------
 # Model builder
 # -----------------------------
-
+# NOTE:
+# `minimize_last_semester` comes from PlanConstraint.minimize_last_semester
+# (Plan Settings → "Prefer earlier completion when multiple schedules are valid")
 def build_model(
     courses: List[str],
     prereq_trees: Dict[str, Req],
@@ -260,16 +262,47 @@ def build_model(
                 warnings=warnings,
             )
 
-    # 4) objective
+    # 4) OBJECTIVE FUNCTION
+    # The solver may have many valid schedules that satisfy all constraints
+    # (offerings, credits, prerequisites...)
+    # This objective defines *how the solver chooses between them*.
+    # We support two behaviors, controlled by `minimize_last_semester`:
+    #   - unchecked (False): "pack earlier"
+    #       → pull courses as far left as possible overall
+    #   - checked (True): "finish ASAP, then pack earlier"
+    #       → first minimize the *latest semester used*
+    #       → then, among those, still prefer earlier placement
+    # Lateness = weighted sum of semesters.
+    # This encourages placing courses in earlier semesters.
+    lateness = lpSum(
+        s * x[c][s]
+        for c in courses
+        for s in allowed_semesters[c]
+    )
+
     if minimize_last_semester:
+        # Track the latest semester in which ANY course is scheduled.
+        # Every course's chosen semester must be <= last_sem.
         last_sem = LpVariable("last_sem", lowBound=1, cat="Integer")
+
         for c in courses:
-            model += _sem_expr(x, allowed_semesters, c) <= last_sem, f"last_sem_after_{c}"
-        model += last_sem, "minimize_last_semester"
+            model += (
+                _sem_expr(x, allowed_semesters, c) <= last_sem,
+                f"last_sem_after_{c}"
+            )
+
+        # Lexicographic objective:
+        #   1) Minimize the final semester used (finish ASAP)
+        #   2) Tie-break by packing courses earlier within that horizon
+        #
+        # BIG must dominate any possible lateness value.
+        BIG = 10_000
+        model += BIG * last_sem + lateness, "finish_early_then_pack"
+
     else:
-        model += lpSum(
-            s * x[c][s] for c in courses for s in allowed_semesters[c]
-        ), "minimize_sum_semesters"
+        # Default behavior: pack courses earlier overall.
+        # This produces predictable, human-friendly schedules.
+        model += lateness, "pack_earlier"
 
     return model, x, warnings
 
