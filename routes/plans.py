@@ -269,13 +269,13 @@ def plan_settings(plan_id: int):
     if pc is None:
         pc = PlanConstraint(
             degree_plan_id=plan.id,
-            total_semesters=6,  # default
+            total_semesters=9,  # default
             max_credits_per_semester=None,
             enforce_prereqs=True,
             enforce_credit_limits=True,
             minimize_last_semester=True,
-            years=None,                 # optional, in the plan 
-            semesters_per_year=None,    # optional, in the plan 
+            years=3,                 # optional, in the plan 
+            semesters_per_year=3,    # optional, in the plan 
         )
         db.session.add(pc)
         db.session.commit()
@@ -373,11 +373,16 @@ def delete_plan(plan_id: int):
 
     has_courses = Course.query.filter_by(degree_plan_id=plan.id).first() is not None
     has_prereqs = Prerequisite.query.filter_by(degree_plan_id=plan.id).first() is not None
-    has_constraints = PlanConstraint.query.filter_by(degree_plan_id=plan.id).first() is not None
 
-    if has_courses or has_prereqs or has_constraints:
-        flash("Delete blocked: delete all courses first (and any prerequisites/settings).", "warning")
+    # Do NOT block on PlanConstraint (settings/constraints). This row is typically auto-created
+    # per plan and should be cleaned up automatically during plan deletion.
+    if has_courses or has_prereqs:
+        flash("Delete blocked: delete all courses first (and any prerequisites).", "warning")
         return redirect(url_for("main.view_plan", plan_id=plan.id))
+    
+    # Cleanup plan-scoped settings row(s) so plan deletion isn't blocked by auto-created metadata.
+    PlanConstraint.query.filter_by(degree_plan_id=plan.id).delete()
+    
     db.session.delete(plan)
     db.session.commit()
     flash("Plan deleted.", "success")
