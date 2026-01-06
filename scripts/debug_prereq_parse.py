@@ -1,3 +1,9 @@
+import os
+import sys
+
+# Make project root importable
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 from config import Config
 from utils.course_catalog import load_catalog, build_resolver
 from utils.external_rules import load_external_rules
@@ -54,7 +60,7 @@ if __name__ == "__main__":
                     walk(child)
         walk(tree)
 
-DEBUG = False
+DEBUG = True
 
 if DEBUG:
     print("Courses with prereq_text parsed:", parsed)

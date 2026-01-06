@@ -58,8 +58,12 @@ def regen_offerings(plan_id: int) -> None:
     if pc is None:
         raise ValueError(f"PlanConstraint missing for plan_id={plan_id}")
 
-    total = int(pc.total_semesters or 6)
-    sp = int(pc.semesters_per_year or 2)
+    # Persist plan structure: 3 years × 3 semesters/year = 9 total
+    pc.semesters_per_year = 3
+    pc.total_semesters = 9
+
+    sp = pc.semesters_per_year
+    total = pc.total_semesters
 
     meta = load_catalog_meta()
     meta_courses = meta.get("courses") or {}
@@ -101,4 +105,4 @@ def regen_offerings(plan_id: int) -> None:
 if __name__ == "__main__":
     app = create_app()
     with app.app_context():
-        regen_offerings(plan_id=1)  # <-- change plan id here
+        regen_offerings(plan_id=13)  # <-- change plan id here

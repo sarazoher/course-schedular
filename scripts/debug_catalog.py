@@ -1,3 +1,9 @@
+import os
+import sys
+
+# Make project root importable
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 from pathlib import Path
 from config import Config
 from utils.course_catalog import load_catalog, _load_xlsx_catalog, _load_csv_catalog  # temporary
