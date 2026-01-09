@@ -105,4 +105,4 @@ def regen_offerings(plan_id: int) -> None:
 if __name__ == "__main__":
     app = create_app()
     with app.app_context():
-        regen_offerings(plan_id=13)  # <-- change plan id here
+        regen_offerings(plan_id=11)  # <-- change plan id here
