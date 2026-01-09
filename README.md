@@ -12,7 +12,7 @@ The application allows users to create degree plans, add courses from a shared c
 Create and activate a virtual environment, then install dependencies:
 
 ```bash
-python -m venv venv
+python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 ```
@@ -121,3 +121,94 @@ The current focus is solver correctness and compatibility with real catalog data
 A fresh database setup is fully supported. Existing databases may require manual repair scripts, and automatic migration from earlier schemas is not guaranteed at this stage.
 
 This approach allows the system to remain stable while providing a clear path for future schema migration after solver behavior is finalized.
+
+
+
+ 
+course-schedular/
+│
+├── auth/
+│   ├── routes.py
+│   └── __init__.py
+│
+├── data_catalog/
+│   ├── archive/
+│       └── דרישות קדם (+מרצה, סמסטר ושנה, נז) - מדעי המחשב.xlsx
+│   ├── aliases.csv
+│   ├── catalog_meta.json
+│   ├── external_rules.txt
+│   ├── optional_courses.json
+│   └── דרישות קדם (+מרצה, סמסטר ושנה, נז) - מדעי המחשב.xlsx (New edited excel, cleaner prerequisites)
+│
+├── instance/
+│   └── app.db
+│
+├── models/
+│   ├── __init__.py
+│   ├── catalog_course.py
+│   ├── course_offering.py
+│   ├── course.py
+│   ├── degree_plan.py
+│   ├── plan_constraint.py
+│   ├── plan_course.py
+│   ├── plan_solution.py
+│   ├── prerequisite.py
+│   └── user.py
+│
+├── routes/
+│   ├── __init__.py
+│   ├── courses.py
+│   ├── plans.py
+│   └── solver_routes.py
+│
+├── scripts/
+│   ├── debug_catalog.py
+│   ├── debug_prereq_parser.py
+│   ├── extract_catalog_meta.py 
+│   └── regen_offerings.py
+│    
+├── services/
+│   ├── __init__.py
+│   ├── catalog_meta.py
+│   ├── req_ir.py
+│   ├── solver.py
+│   └── validation.py
+│
+├── static/csss
+│   └── main.css
+│
+├── templates/
+│   ├── base.html
+│   ├── course_detail.html
+│   ├── create_plan.html
+│   ├── dashboard.html
+│   ├── edit_course.html
+│   ├── edit_offerings.html
+│   ├── home.html
+│   ├── login.html
+│   ├── plan_detail.html
+│   ├── plan_schedule.html
+│   ├── plan_settings.html
+│   └── register.html
+│
+├── utils/
+│   ├── __init__.py
+│   ├── alias_rules.py
+│   ├── course_catalog.py
+│   ├── default_offerings.py
+│   ├── external_rules.py
+│   ├── optional_courses.py
+│   ├── req_parser.py
+│   └── semesters.py
+│
+├── venv/
+│
+├── .gitignore
+├── app.py
+├── config.py
+├── extensions.py
+├── init_db.py
+├── README.md
+├── requirements.txt
+├── requirements-dev.txt
+└── seed_vatalog_db.py
