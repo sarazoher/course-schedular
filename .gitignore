@@ -70,5 +70,5 @@ data_catalog/
 *.xlsx
 *.xls
 
-
+# for now because its not needed when DB  
 scripts/regen_offerings.py
