@@ -71,6 +71,4 @@ data_catalog/
 *.xls
 
 
-
-README.md
 scripts/regen_offerings.py
