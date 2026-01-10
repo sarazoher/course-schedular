@@ -12,6 +12,7 @@ from models.plan_constraint import PlanConstraint
 from extensions import db
 from utils.semesters import format_semester_label
 from services.catalog_meta import meta_for_code
+from utils.default_offerings import default_semesters_for_meta
 
 
 def _upsert_catalog_course(*, code: str, name: str, credits: float) -> None:
@@ -288,28 +289,34 @@ def edit_offerings(plan_id: int, course_id: int):
 
     # POST: update offerings based on checkboxes from the tab form
     if request.method == "POST":
+        action = (request.form.get("action") or "save").strip().lower()
+
+        # Reset: delete all DB offerings, go back to auto mode
+        if action == "reset":
+            CourseOffering.query.filter_by(course_id=course.id).delete()
+            db.session.commit()
+            flash("Offerings reset to defaults (auto).", "success")
+            return redirect(url_for("main.course_detail", plan_id=plan.id, course_id=course.id))
+
+        # Normal save path
         selected_raw = request.form.getlist("semesters")  # list of "1", "2", ...
         try:
             selected_semesters = sorted({int(s) for s in selected_raw})
         except ValueError:
             selected_semesters = []
 
-        # Clear existing offerings for this course
-        CourseOffering.query.filter_by(course_id=course.id).delete()
+        # Prevent user from saving an empty set (should use Reset instead)
+        if not selected_semesters:
+            flash("Select at least one semester (or click Reset to defaults).", "error")
+            return redirect(url_for("main.course_detail", plan_id=plan.id, course_id=course.id))
 
-        # Insert the new ones
+        # Replace all DB offerings
+        CourseOffering.query.filter_by(course_id=course.id).delete()
         for s in selected_semesters:
-            db.session.add(
-                CourseOffering(
-                    course_id=course.id,
-                    semester_number=s,
-                )
-            )
+            db.session.add(CourseOffering(course_id=course.id, semester_number=s))
 
         db.session.commit()
         flash("Offerings updated.", "success")
-
-        # Back to the unified course page with tabs
         return redirect(url_for("main.course_detail", plan_id=plan.id, course_id=course.id))
 
     # GET: we don't show a separate offerings page anymore,
@@ -349,12 +356,28 @@ def course_detail(plan_id: int, course_id: int):
     ).first()
     total_semesters = constraints.total_semesters if constraints and constraints.total_semesters else 6
 
-    # Selected semesters for this course (offerings tab)
-    selected_semesters = [off.semester_number for off in course.offerings]
-
-    # Semester labels for UI (Year/Term when semesters_per_year is set)
+    # --- Offerings tab: auto vs manual ---
+    manual_semesters = sorted({int(off.semester_number) for off in course.offerings})
     semesters_per_year = constraints.semesters_per_year if constraints else None
-    semester_labels = {s: format_semester_label(s, semesters_per_year) for s in range(1, total_semesters + 1)}
+
+    # Load catalog metadata for this course
+    catalog_meta = meta_for_code(course.code)
+
+    # Compute default semesters (auto mode)
+    default_semesters = default_semesters_for_meta(
+        meta=catalog_meta,
+        total_semesters=total_semesters,
+        semesters_per_year=semesters_per_year,
+    )
+
+    offerings_mode = "manual" if manual_semesters else "default"
+    selected_semesters = manual_semesters if manual_semesters else default_semesters
+
+    # Labels for UI
+    semester_labels = {
+        s: format_semester_label(s, semesters_per_year)
+        for s in range(1, total_semesters + 1)
+    }
 
     # Incoming prereqs: what this course REQUIRES
     incoming_prereqs = Prerequisite.query.filter_by(
@@ -403,8 +426,6 @@ def course_detail(plan_id: int, course_id: int):
 
     cycle_risk_ids = reachable
 
-    catalog_meta = meta_for_code(course.code)
-
     return render_template(
         "course_detail.html",
         plan=plan,
@@ -412,7 +433,8 @@ def course_detail(plan_id: int, course_id: int):
         catalog_meta=catalog_meta,
         total_semesters=total_semesters,
         selected_semesters=selected_semesters,
-        incoming_prereqs=incoming_prereqs,
+        default_semesters=default_semesters,
+        offerings_mode=offerings_mode,        incoming_prereqs=incoming_prereqs,
         outgoing_prereqs=outgoing_prereqs,
         available_prereq_courses=available_prereq_courses,
         cycle_risk_ids=cycle_risk_ids,

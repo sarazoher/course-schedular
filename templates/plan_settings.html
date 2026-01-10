@@ -36,13 +36,16 @@
       method="POST"
       action="{{ url_for('main.plan_settings', plan_id=plan.id) }}"
     >
+    
+    {% set is_structured = constraints.years and constraints.semesters_per_year %}
 
       <!-- Schedule limits -->
       <h5 class="mb-3">Schedule limits</h5>
 
       <p class="text-muted small mb-4">
-        Scheduling limits are controlled by <strong>Total semesters</strong> and <strong>Max credits per semester</strong>. <br>
-        Plan structure below only changes labels.
+        Scheduling limits are controlled by <strong>Total semesters</strong> and
+        <strong>Max credits per semester</strong>.
+        Plan structure groups semesters and may derive total semesters automatically.
       </p>
 
       <div class="row g-3">
@@ -55,23 +58,38 @@
                   Total semesters
                 </label>
                 <div class="form-text">
-                  Controls how many semesters exist in the plan <br>
-                  (and in the solver).
+                  Defines the plan's time range.
                 </div>
               </div>
-
               <div class="text-end">
-                <input
-                  type="number"
-                  class="form-control"
-                  id="total_semesters"
-                  name="total_semesters"
-                  min="1"
-                  max="20"
-                  value="{{ constraints.total_semesters or 6 }}"
-                  required
-                  style="width: 140px;"
-                >
+                {% if is_structured %}
+                  <input
+                    type="number"
+                    class="form-control bg-body-secondary"
+                    value="{{ constraints.years * constraints.semesters_per_year }}"
+                    readonly
+                    style="width: 140px;"
+                  >
+                  <div class="text-muted small mt-1 text-end">
+                    Derived: {{ constraints.years }} × {{ constraints.semesters_per_year }}
+                  </div>
+                {% else %}
+                  <input
+                    type="number"
+                    class="form-control"
+                    id="total_semesters"
+                    name="total_semesters"
+                    min="1"
+                    max="20"
+                    value="{{ constraints.total_semesters or 6 }}"
+                    required
+                    style="width: 140px;"
+                  >
+                  <div class="text-muted small mt-1 text-end" style="visibility: hidden;">
+                    spacer
+                  </div>
+
+                {% endif %}
               </div>
             </div>
           </div>
@@ -86,7 +104,7 @@
                   Max credits for a semester
                 </label>
                 <div class="form-text">
-                  If left blank, no per-semester credit limit is enforced.
+                  Leave blank for no limit.
                 </div>
               </div>
 
@@ -102,6 +120,10 @@
                   placeholder="No limit"
                   style="width: 140px;"
                 >
+                <div class="text-muted small mt-1 text-end" style="visibility: hidden;">
+                  spacer
+                </div>
+
               </div>
             </div>
           </div>

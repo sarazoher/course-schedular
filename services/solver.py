@@ -15,11 +15,13 @@ from pulp import (
 
 # ↓ import granting access to IR + parsing entry point
 from config import Config
+from models.plan_constraint import PlanConstraint
 from utils.course_catalog import load_catalog, build_resolver
 from utils.external_rules import load_external_rules
 from utils.alias_rules import load_aliases_csv
 from utils.req_parser import parse_req_text
 from services.req_ir import Req, ReqLeaf, ReqAnd, ReqOr
+from utils.default_offerings import default_semesters_for_code
 
 # -----------------------------
 # Warnings container
@@ -314,33 +316,16 @@ def _default_allowed_semesters_for_code(
     total_semesters: int,
     semesters_per_year: Optional[int],
 ) -> List[int]:
+    """Compatibility wrapper: compute default offerings from metadata + plan structure.
+
+    Policy: if meta has academic_year -> that year's window; else full 1..total_semesters.
     """
-    Safe default offerings when a course has no explicit offerings yet.
-    Policy:
-      - if metadata has academic_year and semesters_per_year is known (or assumed 2), allow that year's semester window
-      - otherwise allow all semesters (1..total_semesters)
-    """
-    sp = semesters_per_year or 2  # safe default if user didn't configure plan structure
-    m = meta_courses.get(str(code), {})
-    if not isinstance(m, dict):
-        m = {}
-
-    y_raw = m.get("academic_year")
-    try:
-        y = int(y_raw) if y_raw is not None and str(y_raw).strip() != "" else None
-    except Exception:
-        y = None
-
-    if y is None or y < 1:
-        return list(range(1, total_semesters + 1))
-
-    start = (y - 1) * sp + 1
-    end = min(total_semesters, y * sp)
-    if start > total_semesters:
-        return list(range(1, total_semesters + 1))
-
-    return list(range(start, end + 1))
-
+    return default_semesters_for_code(
+        code=code,
+        meta_courses=meta_courses or {},
+        total_semesters=total_semesters,
+        semesters_per_year=semesters_per_year,
+    )
 
 # -----------------------------
 # Inputs from DB 
@@ -362,7 +347,6 @@ def build_inputs_from_plan(plan_id: int) -> Dict:
     from models.plan_course import PlanCourse
     from models.catalog_course import CatalogCourse
     from models.course import Course
-    from models.course_offering import CourseOffering
     from models.plan_constraint import PlanConstraint
     from services.catalog_meta import load_catalog_meta
 
@@ -380,7 +364,16 @@ def build_inputs_from_plan(plan_id: int) -> Dict:
         if (constraints and constraints.max_credits_per_semester)
         else 9999
     )
+    
+    years = constraints.years if constraints else None
     semesters_per_year = constraints.semesters_per_year if constraints else None
+
+    # Defensive: if structure exists, derive horizon even if DB has stale value
+    if years and semesters_per_year:
+        total_semesters = int(years) * int(semesters_per_year)
+    else:
+        total_semesters = int(total_semesters)
+
 
     max_credits_per_semester: Dict[int, int] = {
         s: default_max_credits for s in range(1, total_semesters + 1)
@@ -431,15 +424,9 @@ def build_inputs_from_plan(plan_id: int) -> Dict:
             db.session.add(legacy)
             db.session.flush()
 
-            # default offerings (only for brand-new legacy course)
-            allowed = _default_allowed_semesters_for_code(
-                code=code,
-                meta_courses=meta_courses,
-                total_semesters=total_semesters,
-                semesters_per_year=semesters_per_year,
-            )
-            for s in allowed:
-                db.session.add(CourseOffering(course_id=legacy.id, semester_number=int(s)))
+            # IMPORTANT: do NOT auto-create default CourseOffering rows here.
+            # Defaults are computed on the fly (academic_year + plan structure) unless
+            # the user explicitly overrides offerings in the UI.
 
         pc.legacy_course_id = legacy.id
         created_any = True
@@ -480,6 +467,9 @@ def build_inputs_from_plan(plan_id: int) -> Dict:
             )
 
         allowed_semesters[code] = sems
+
+
+
 
     # ---- Build prereq IR trees from catalog prereq_text (unchanged) ----
     catalog = load_catalog(Config.CATALOG_DIR)
@@ -531,6 +521,15 @@ def solve_plan(
     Persisting into PlanSolution is intentionally NOT done here.
     """
     inputs = build_inputs_from_plan(plan_id)
+    
+    pc = PlanConstraint.query.filter_by(degree_plan_id=plan_id).first()
+    if pc and pc.years and pc.semesters_per_year:
+        expected = pc.years * pc.semesters_per_year
+        if pc.total_semesters != expected:
+            raise ValueError(
+                f"Invalid plan structure: total_semesters={pc.total_semesters} "
+                f"but years ×semesters_per_year={expected}"
+            )
 
     model, x, warnings = build_model(
         inputs["courses"],

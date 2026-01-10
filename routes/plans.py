@@ -310,12 +310,16 @@ def plan_settings(plan_id: int):
                 return redirect(url_for("main.plan_settings", plan_id=plan.id))
 
         # ---- total semesters (solver bound; always explicit) ----
-        total_semesters_raw = (request.form.get("total_semesters") or "").strip()
-        try:
-            total_semesters_val = int(total_semesters_raw)
-        except ValueError:
-            flash("Total semesters must be a whole number.", "error")
-            return redirect(url_for("main.plan_settings", plan_id=plan.id))
+        # If plan structure is provided, derive total semesters.
+        if years_val is not None and semesters_per_year_val is not None:
+            total_semesters_val = years_val * semesters_per_year_val
+        else:
+            total_semesters_raw = (request.form.get("total_semesters") or "").strip()
+            try:
+                total_semesters_val = int(total_semesters_raw)
+            except ValueError:
+                flash("Total semesters must be a whole number.", "error")
+                return redirect(url_for("main.plan_settings", plan_id=plan.id))
 
         # Validate total semesters regardless of source
         if total_semesters_val < 1 or total_semesters_val > 20:

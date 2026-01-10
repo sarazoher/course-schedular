@@ -47,7 +47,7 @@
       </button>
     </li>
 
-    {# <li class="nav-item" role="presentation">
+    <li class="nav-item" role="presentation">
       <button class="nav-link"
               id="offerings-tab"
               data-bs-toggle="tab"
@@ -58,9 +58,9 @@
               aria-selected="false">
         Offerings
       </button>
-    </li> #}
+    </li> 
 
-    {# <li class="nav-item" role="presentation">
+    <li class="nav-item" role="presentation">
       <button class="nav-link"
               id="prereq-tab"
               data-bs-toggle="tab"
@@ -71,7 +71,7 @@
               aria-selected="false">
         Prerequisites
       </button>
-    </li> #}
+    </li> 
   </ul>
 
   <div class="tab-content pt-3" id="courseTabsContent">
@@ -143,7 +143,7 @@
       </form>
     </div>
 
-    {# <!-- Offerings tab -->
+    <!-- Offerings tab -->
     <div class="tab-pane fade"
          id="offerings"
          role="tabpanel"
@@ -154,9 +154,32 @@
             method="POST"
             class="mt-3">
 
-        <p>Select semesters where this course is offered:</p>
+        <div class="d-flex align-items-center gap-2">
+          <p class="mb-0">Select semesters where this course is offered:</p>
 
-        <div class="d-flex flex-wrap gap-3">
+          {% if offerings_mode == "default" %}
+            <span class="badge bg-secondary">Default (auto)</span>
+          {% else %}
+            <span class="badge bg-warning text-dark">Manual override</span>
+          {% endif %}
+        </div>
+
+        <div class="text-muted small mt-1">
+          {% if offerings_mode == "default" %}
+            These semesters are computed automatically from the catalog
+            <strong>Recommended year</strong>
+            {% if catalog_meta and catalog_meta.academic_year %}
+              (Year {{ catalog_meta.academic_year }})
+            {% endif %}
+            and your plan structure.
+          {% else %}
+            You manually changed the offerings.
+            The default window would be:
+            {{ default_semesters | join(", ") }}.
+          {% endif %}
+        </div>
+
+        <div class="d-flex flex-wrap gap-3 mt-3">
           {% for s in range(1, total_semesters + 1) %}
           <div class="form-check me-3 mb-2">
             <input class="form-check-input"
@@ -172,13 +195,29 @@
           {% endfor %}
         </div>
 
-        <button type="submit" class="btn btn-primary mt-3">
-          Save offerings
-        </button>
-      </form>
-    </div> #}
+        <div class="d-flex gap-2 mt-3">
+          <button type="submit"
+                  name="action"
+                  value="save"
+                  class="btn btn-primary">
+            Save offerings
+          </button>
 
-    {# <!-- Prereqs tab -->
+          {% if offerings_mode == "manual" %}
+            <button type="submit"
+                    name="action"
+                    value="reset"
+                    class="btn btn-outline-secondary"
+                    onclick="return confirm('Reset offerings to defaults? This will remove your manual selections.');">
+              Reset to defaults
+            </button>
+          {% endif %}
+        </div>
+
+      </form>
+    </div> 
+
+    <!-- Prereqs tab -->
     <div class="tab-pane fade"
          id="prereqs"
          role="tabpanel"
@@ -270,7 +309,7 @@
           </ul>
         </div>
       </div>
-    </div> #}
+    </div> 
 
   </div>
 </div>
