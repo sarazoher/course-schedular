@@ -27,11 +27,15 @@ htmlcov/
 # ------------------------
 # Flask / local app state
 # ------------------------
-instance/
+# Ignore dev databases
+instance/*.db
 *.db
 *.sqlite
 *.sqlite3
 *.sqlite3-journal
+
+# Ignore uploaded files
+instance/uploads/
 
 # ------------------------
 # Environment / secrets
