@@ -1,0 +1,17 @@
+# External prerequisite rules
+#
+# These rules classify prerequisite tokens that are requirements but NOT
+# degree courses the solver should schedule (for example, placement tests,
+# language/service requirements, exemptions, ...)
+#
+# This file is edited to fit specific uni/college catalog without changing code.
+#
+# Supported formats:
+#   exact:<token>   -> exact match after normalization
+#   re:<regex>      -> regex searched after normalization
+#   <regex>         -> treated as regex if no prefix
+
+re:.*אנגלית מתקדמים*
+re:.*אנגלית.*
+re:.*עברית.*
+re:.*פטור.*

@@ -1,0 +1,678 @@
+{
+  "version": 1,
+  "generated_at": "2025-12-26T12:33:09.413211+00:00",
+  "source": {
+    "folder": "data_catalog"
+  },
+  "degrees": {
+    "CS": {
+      "label": "Computer Science",
+      "active": true
+    }
+  },
+  "courses": {
+    "7100009": {
+      "degree_tags": [
+        "CS"
+      ],
+      "academic_year": 1,
+      "lecturer": "מני יעל",
+      "weekly_hours": 1.0,
+      "lesson_type": "other",
+      "coreq_text": null,
+      "raw": {
+        "academic_year": 1,
+        "lecturer": "מני יעל",
+        "weekly_hours": 1,
+        "lesson_type": "שעור",
+        "coreq_text": null
+      }
+    },
+    "8100057": {
+      "degree_tags": [
+        "CS"
+      ],
+      "academic_year": 3,
+      "lecturer": "ברקן לב עדי",
+      "weekly_hours": 1.0,
+      "lesson_type": "other",
+      "coreq_text": null,
+      "raw": {
+        "academic_year": 3,
+        "lecturer": "ברקן לב עדי",
+        "weekly_hours": 1,
+        "lesson_type": "שעור",
+        "coreq_text": null
+      }
+    },
+    "8500001": {
+      "degree_tags": [
+        "CS"
+      ],
+      "academic_year": 1,
+      "lecturer": "דר נור איגור",
+      "weekly_hours": 3.0,
+      "lesson_type": "practice",
+      "coreq_text": null,
+      "raw": {
+        "academic_year": 1,
+        "lecturer": "דר נור איגור",
+        "weekly_hours": 3,
+        "lesson_type": "שעור ותרגול",
+        "coreq_text": null
+      }
+    },
+    "8500002": {
+      "degree_tags": [
+        "CS"
+      ],
+      "academic_year": 1,
+      "lecturer": "מר מינקין אלכסנדר",
+      "weekly_hours": 3.0,
+      "lesson_type": "practice",
+      "coreq_text": null,
+      "raw": {
+        "academic_year": 1,
+        "lecturer": "מר מינקין אלכסנדר",
+        "weekly_hours": 3,
+        "lesson_type": "שעור ותרגול",
+        "coreq_text": null
+      }
+    },
+    "8500005": {
+      "degree_tags": [
+        "CS"
+      ],
+      "academic_year": 1,
+      "lecturer": "מר מינקין אלכסנדר",
+      "weekly_hours": 3.0,
+      "lesson_type": "practice",
+      "coreq_text": null,
+      "raw": {
+        "academic_year": 1,
+        "lecturer": "מר מינקין אלכסנדר",
+        "weekly_hours": 3,
+        "lesson_type": "שעור ותרגול",
+        "coreq_text": null
+      }
+    },
+    "8500006": {
+      "degree_tags": [
+        "CS"
+      ],
+      "academic_year": 1,
+      "lecturer": "מר גרין עוזרי נתנאל",
+      "weekly_hours": 3.0,
+      "lesson_type": "practice",
+      "coreq_text": null,
+      "raw": {
+        "academic_year": 1,
+        "lecturer": "מר גרין עוזרי נתנאל",
+        "weekly_hours": 3,
+        "lesson_type": "שעור ותרגול",
+        "coreq_text": null
+      }
+    },
+    "8500007": {
+      "degree_tags": [
+        "CS"
+      ],
+      "academic_year": 1,
+      "lecturer": "דר ויסבלט טל",
+      "weekly_hours": 2.0,
+      "lesson_type": "practice",
+      "coreq_text": null,
+      "raw": {
+        "academic_year": 1,
+        "lecturer": "דר ויסבלט טל",
+        "weekly_hours": 2,
+        "lesson_type": "שעור ותרגול",
+        "coreq_text": null
+      }
+    },
+    "8500008": {
+      "degree_tags": [
+        "CS"
+      ],
+      "academic_year": 1,
+      "lecturer": "דר כרמון מרים שיראל",
+      "weekly_hours": 2.0,
+      "lesson_type": "practice",
+      "coreq_text": null,
+      "raw": {
+        "academic_year": 1,
+        "lecturer": "דר כרמון מרים שיראל",
+        "weekly_hours": 2,
+        "lesson_type": "שעור ותרגול",
+        "coreq_text": null
+      }
+    },
+    "8500009": {
+      "degree_tags": [
+        "CS"
+      ],
+      "academic_year": 2,
+      "lecturer": "גנוט איציק",
+      "weekly_hours": 1.0,
+      "lesson_type": "other",
+      "coreq_text": null,
+      "raw": {
+        "academic_year": 2,
+        "lecturer": "גנוט איציק",
+        "weekly_hours": 1,
+        "lesson_type": "שעור",
+        "coreq_text": null
+      }
+    },
+    "8500010": {
+      "degree_tags": [
+        "CS"
+      ],
+      "academic_year": 2,
+      "lecturer": "דר פריד סלע",
+      "weekly_hours": 2.0,
+      "lesson_type": "practice",
+      "coreq_text": null,
+      "raw": {
+        "academic_year": 2,
+        "lecturer": "דר פריד סלע",
+        "weekly_hours": 2,
+        "lesson_type": "שעור ותרגול",
+        "coreq_text": null
+      }
+    },
+    "8500011": {
+      "degree_tags": [
+        "CS"
+      ],
+      "academic_year": 2,
+      "lecturer": "דר פריד סלע",
+      "weekly_hours": 1.0,
+      "lesson_type": "practice",
+      "coreq_text": null,
+      "raw": {
+        "academic_year": 2,
+        "lecturer": "דר פריד סלע",
+        "weekly_hours": 1,
+        "lesson_type": "שעור ותרגול",
+        "coreq_text": null
+      }
+    },
+    "8500012": {
+      "degree_tags": [
+        "CS"
+      ],
+      "academic_year": 1,
+      "lecturer": "דר נור איגור",
+      "weekly_hours": 2.0,
+      "lesson_type": "practice",
+      "coreq_text": null,
+      "raw": {
+        "academic_year": 1,
+        "lecturer": "דר נור איגור",
+        "weekly_hours": 2,
+        "lesson_type": "שעור ותרגול",
+        "coreq_text": null
+      }
+    },
+    "8500013": {
+      "degree_tags": [
+        "CS"
+      ],
+      "academic_year": 2,
+      "lecturer": "דר פריד סלע",
+      "weekly_hours": 2.0,
+      "lesson_type": "practice",
+      "coreq_text": null,
+      "raw": {
+        "academic_year": 2,
+        "lecturer": "דר פריד סלע",
+        "weekly_hours": 2,
+        "lesson_type": "שעור ותרגול",
+        "coreq_text": null
+      }
+    },
+    "8500015": {
+      "degree_tags": [
+        "CS"
+      ],
+      "academic_year": 3,
+      "lecturer": "אסף הראל",
+      "weekly_hours": 1.0,
+      "lesson_type": "other",
+      "coreq_text": null,
+      "raw": {
+        "academic_year": 3,
+        "lecturer": "אסף הראל",
+        "weekly_hours": 1,
+        "lesson_type": "שעור",
+        "coreq_text": null
+      }
+    },
+    "8500016": {
+      "degree_tags": [
+        "CS"
+      ],
+      "academic_year": 2,
+      "lecturer": "דר נור איגור",
+      "weekly_hours": 2.0,
+      "lesson_type": "practice",
+      "coreq_text": "מבוא להסתברות ולסטטיסטיקה",
+      "raw": {
+        "academic_year": 2,
+        "lecturer": "דר נור איגור",
+        "weekly_hours": 2,
+        "lesson_type": "שעור ותרגול",
+        "coreq_text": "מבוא להסתברות ולסטטיסטיקה"
+      }
+    },
+    "8500017": {
+      "degree_tags": [
+        "CS"
+      ],
+      "academic_year": 2,
+      "lecturer": "נתנאל עוזרי",
+      "weekly_hours": 2.0,
+      "lesson_type": "practice",
+      "coreq_text": null,
+      "raw": {
+        "academic_year": 2,
+        "lecturer": "נתנאל עוזרי",
+        "weekly_hours": 2,
+        "lesson_type": "שעור ותרגול",
+        "coreq_text": null
+      }
+    },
+    "8500018": {
+      "degree_tags": [
+        "CS"
+      ],
+      "academic_year": 3,
+      "lecturer": "אסף הראל",
+      "weekly_hours": 2.0,
+      "lesson_type": "practice",
+      "coreq_text": null,
+      "raw": {
+        "academic_year": 3,
+        "lecturer": "אסף הראל",
+        "weekly_hours": 2,
+        "lesson_type": "שעור ותרגול",
+        "coreq_text": null
+      }
+    },
+    "8500020": {
+      "degree_tags": [
+        "CS"
+      ],
+      "academic_year": 3,
+      "lecturer": "דר פריד סלע",
+      "weekly_hours": 2.0,
+      "lesson_type": "practice",
+      "coreq_text": null,
+      "raw": {
+        "academic_year": 3,
+        "lecturer": "דר פריד סלע",
+        "weekly_hours": 2,
+        "lesson_type": "שעור ותרגול",
+        "coreq_text": null
+      }
+    },
+    "8500025": {
+      "degree_tags": [
+        "CS"
+      ],
+      "academic_year": 2,
+      "lecturer": "דר טל ויסבלט",
+      "weekly_hours": 2.0,
+      "lesson_type": "practice",
+      "coreq_text": null,
+      "raw": {
+        "academic_year": 2,
+        "lecturer": "דר טל ויסבלט",
+        "weekly_hours": 2,
+        "lesson_type": "שעור ותרגול",
+        "coreq_text": null
+      }
+    },
+    "8500026": {
+      "degree_tags": [
+        "CS"
+      ],
+      "academic_year": 3,
+      "lecturer": "נתנאל עוזרי",
+      "weekly_hours": 2.0,
+      "lesson_type": "other",
+      "coreq_text": null,
+      "raw": {
+        "academic_year": 3,
+        "lecturer": "נתנאל עוזרי",
+        "weekly_hours": 2,
+        "lesson_type": "שעור",
+        "coreq_text": null
+      }
+    },
+    "8500027": {
+      "degree_tags": [
+        "CS"
+      ],
+      "academic_year": 3,
+      "lecturer": "דר שגיא גיא",
+      "weekly_hours": 2.0,
+      "lesson_type": "other",
+      "coreq_text": null,
+      "raw": {
+        "academic_year": 3,
+        "lecturer": "דר שגיא גיא",
+        "weekly_hours": 2,
+        "lesson_type": "שעור",
+        "coreq_text": null
+      }
+    },
+    "8500029": {
+      "degree_tags": [
+        "CS"
+      ],
+      "academic_year": 2,
+      "lecturer": "דר ויסבלט טל",
+      "weekly_hours": 2.0,
+      "lesson_type": "practice",
+      "coreq_text": null,
+      "raw": {
+        "academic_year": 2,
+        "lecturer": "דר ויסבלט טל",
+        "weekly_hours": 2,
+        "lesson_type": "שעור ותרגול",
+        "coreq_text": null
+      }
+    },
+    "8500031": {
+      "degree_tags": [
+        "CS"
+      ],
+      "academic_year": 2,
+      "lecturer": "דר סלבה בירפיר",
+      "weekly_hours": 2.0,
+      "lesson_type": "practice",
+      "coreq_text": null,
+      "raw": {
+        "academic_year": 2,
+        "lecturer": "דר סלבה בירפיר",
+        "weekly_hours": 2,
+        "lesson_type": "שעור ותרגול",
+        "coreq_text": null
+      }
+    },
+    "8500032": {
+      "degree_tags": [
+        "CS"
+      ],
+      "academic_year": 3,
+      "lecturer": "דר נור איגור",
+      "weekly_hours": 2.0,
+      "lesson_type": "other",
+      "coreq_text": null,
+      "raw": {
+        "academic_year": 3,
+        "lecturer": "דר נור איגור",
+        "weekly_hours": 2,
+        "lesson_type": "שעור",
+        "coreq_text": null
+      }
+    },
+    "8500033": {
+      "degree_tags": [
+        "CS"
+      ],
+      "academic_year": 3,
+      "lecturer": "דר מרים כרמון",
+      "weekly_hours": 2.0,
+      "lesson_type": "other",
+      "coreq_text": null,
+      "raw": {
+        "academic_year": 3,
+        "lecturer": "דר מרים כרמון",
+        "weekly_hours": 2,
+        "lesson_type": "בחירה",
+        "coreq_text": null
+      }
+    },
+    "8500034": {
+      "degree_tags": [
+        "CS"
+      ],
+      "academic_year": 1,
+      "lecturer": "דשן מור",
+      "weekly_hours": 1.0,
+      "lesson_type": "other",
+      "coreq_text": null,
+      "raw": {
+        "academic_year": 1,
+        "lecturer": "דשן מור",
+        "weekly_hours": 1,
+        "lesson_type": "שעור",
+        "coreq_text": null
+      }
+    },
+    "8500035": {
+      "degree_tags": [
+        "CS"
+      ],
+      "academic_year": 3,
+      "lecturer": "דר נור איגור",
+      "weekly_hours": 2.0,
+      "lesson_type": "other",
+      "coreq_text": null,
+      "raw": {
+        "academic_year": 3,
+        "lecturer": "דר נור איגור",
+        "weekly_hours": 2,
+        "lesson_type": "שעור",
+        "coreq_text": null
+      }
+    },
+    "8500036": {
+      "degree_tags": [
+        "CS"
+      ],
+      "academic_year": 2,
+      "lecturer": "דר פריד סלע",
+      "weekly_hours": 2.0,
+      "lesson_type": "practice",
+      "coreq_text": null,
+      "raw": {
+        "academic_year": 2,
+        "lecturer": "דר פריד סלע",
+        "weekly_hours": 2,
+        "lesson_type": "שעור ותרגול",
+        "coreq_text": null
+      }
+    },
+    "8510002": {
+      "degree_tags": [
+        "CS"
+      ],
+      "academic_year": 2,
+      "lecturer": "בוחניק סער",
+      "weekly_hours": 2.0,
+      "lesson_type": "practice",
+      "coreq_text": null,
+      "raw": {
+        "academic_year": 2,
+        "lecturer": "בוחניק סער",
+        "weekly_hours": 2,
+        "lesson_type": "שעור ותרגול",
+        "coreq_text": null
+      }
+    },
+    "8510007": {
+      "degree_tags": [
+        "CS"
+      ],
+      "academic_year": 3,
+      "lecturer": "דר פריד סלע",
+      "weekly_hours": 1.0,
+      "lesson_type": "other",
+      "coreq_text": null,
+      "raw": {
+        "academic_year": 3,
+        "lecturer": "דר פריד סלע",
+        "weekly_hours": 1,
+        "lesson_type": "שעור",
+        "coreq_text": null
+      }
+    },
+    "8510008": {
+      "degree_tags": [
+        "CS"
+      ],
+      "academic_year": 3,
+      "lecturer": "דר נור איגור",
+      "weekly_hours": 2.0,
+      "lesson_type": "other",
+      "coreq_text": "תכנות מתקדם בשפת פייתון",
+      "raw": {
+        "academic_year": 3,
+        "lecturer": "דר נור איגור",
+        "weekly_hours": 2,
+        "lesson_type": "שעור",
+        "coreq_text": "תכנות מתקדם בשפת פייתון"
+      }
+    },
+    "8510012": {
+      "degree_tags": [
+        "CS"
+      ],
+      "academic_year": 3,
+      "lecturer": "דר נור איגור",
+      "weekly_hours": 1.0,
+      "lesson_type": "other",
+      "coreq_text": null,
+      "raw": {
+        "academic_year": 3,
+        "lecturer": "דר נור איגור",
+        "weekly_hours": 1,
+        "lesson_type": "שעור",
+        "coreq_text": null
+      }
+    },
+    "8510014": {
+      "degree_tags": [
+        "CS"
+      ],
+      "academic_year": 3,
+      "lecturer": "דר נור איגור",
+      "weekly_hours": 1.0,
+      "lesson_type": "other",
+      "coreq_text": null,
+      "raw": {
+        "academic_year": 3,
+        "lecturer": "דר נור איגור",
+        "weekly_hours": 1,
+        "lesson_type": "שעור",
+        "coreq_text": null
+      }
+    },
+    "8510015": {
+      "degree_tags": [
+        "CS"
+      ],
+      "academic_year": 3,
+      "lecturer": "דר נור איגור",
+      "weekly_hours": 1.0,
+      "lesson_type": "other",
+      "coreq_text": null,
+      "raw": {
+        "academic_year": 3,
+        "lecturer": "דר נור איגור",
+        "weekly_hours": 1,
+        "lesson_type": "שעור",
+        "coreq_text": null
+      }
+    },
+    "8510018": {
+      "degree_tags": [
+        "CS"
+      ],
+      "academic_year": 3,
+      "lecturer": "דר נור איגור",
+      "weekly_hours": 1.0,
+      "lesson_type": "other",
+      "coreq_text": null,
+      "raw": {
+        "academic_year": 3,
+        "lecturer": "דר נור איגור",
+        "weekly_hours": 1,
+        "lesson_type": "שעור",
+        "coreq_text": null
+      }
+    },
+    "8510019": {
+      "degree_tags": [
+        "CS"
+      ],
+      "academic_year": 3,
+      "lecturer": "דר שגיא גיא",
+      "weekly_hours": 1.0,
+      "lesson_type": "other",
+      "coreq_text": null,
+      "raw": {
+        "academic_year": 3,
+        "lecturer": "דר שגיא גיא",
+        "weekly_hours": 1,
+        "lesson_type": "שעור",
+        "coreq_text": null
+      }
+    },
+    "8510020": {
+      "degree_tags": [
+        "CS"
+      ],
+      "academic_year": 3,
+      "lecturer": "בן ארצי חזי",
+      "weekly_hours": 2.0,
+      "lesson_type": "other",
+      "coreq_text": "תכנות מתקדם בשפת פייתון",
+      "raw": {
+        "academic_year": 3,
+        "lecturer": "בן ארצי חזי",
+        "weekly_hours": 2,
+        "lesson_type": "שעור",
+        "coreq_text": "תכנות מתקדם בשפת פייתון"
+      }
+    },
+    "8510021": {
+      "degree_tags": [
+        "CS"
+      ],
+      "academic_year": 3,
+      "lecturer": "דר שגיא גיא",
+      "weekly_hours": 2.0,
+      "lesson_type": "other",
+      "coreq_text": "תכנות מתקדם בשפת פייתון",
+      "raw": {
+        "academic_year": 3,
+        "lecturer": "דר שגיא גיא",
+        "weekly_hours": 2,
+        "lesson_type": "שעור",
+        "coreq_text": "תכנות מתקדם בשפת פייתון"
+      }
+    },
+    "8510026": {
+      "degree_tags": [
+        "CS"
+      ],
+      "academic_year": 3,
+      "lecturer": "דר שגיא גיא",
+      "weekly_hours": 1.0,
+      "lesson_type": "other",
+      "coreq_text": null,
+      "raw": {
+        "academic_year": 3,
+        "lecturer": "דר שגיא גיא",
+        "weekly_hours": 1,
+        "lesson_type": "שעור",
+        "coreq_text": null
+      }
+    }
+  }
+}

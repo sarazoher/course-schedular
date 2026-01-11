@@ -1,29 +1,34 @@
-# --- Core web app ---
+# ------------------------
+# Core web application
+# ------------------------
 Flask==3.1.2
 Flask-Login==0.6.3
 Flask-SQLAlchemy==3.1.1
 Flask-WTF==1.2.2
+Flask-Bcrypt==1.0.1
 python-dotenv==1.2.1
 
-# --- Database migrations ---
-Flask-Migrate==4.0.7
-Alembic==1.14.0
+# ------------------------
+# Database & persistence
+# ------------------------
+SQLAlchemy==2.0.25
 
-# --- Auth/security helpers ---
-Flask-Bcrypt==1.0.1
+# NOTE:
+# Flask-Migrate / Alembic intentionally omitted.
+# DB is disposable during development, seeds act as migrations.
 
-# --- Solver ---
+# ------------------------
+# Solver / optimization
+# ------------------------
 PuLP==3.3.0
 
-# --- Importing catalog files (Excel/CSV) ---
+# ------------------------
+# Catalog import (Excel / CSV)
+# ------------------------
 pandas==2.2.3
 openpyxl==3.1.5
 
-# --- Production server (Render/Heroku-like deployments) ---
+# ------------------------
+# Production server
+# ------------------------
 gunicorn==23.0.0
-
-
-# Future note for me to remember :)
-# networkx -  graph algorithms
-# ortools - replace/augment PuLP/CBC
-# psycopg2-binary - replace/augment PuLP/CBC

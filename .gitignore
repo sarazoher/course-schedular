@@ -1,74 +1,81 @@
 # ------------------------
-# Python
+# Python build artifacts
 # ------------------------
 __pycache__/
 *.py[cod]
-*.pyo
+*.so
 *.pyd
 *.pdb
-*.so
 
-# Virtual environment
+# ------------------------
+# Virtual environments
+# ------------------------
+.venv/
 venv/
 env/
 ENV/
 
-# Byte-compiled / optimized / DLL files
-*.pyc
-*.pyo
+# ------------------------
+# Test / lint / type caches
+# ------------------------
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
 
 # ------------------------
-# Flask / App files
+# Flask / local app state
 # ------------------------
 instance/
 *.db
 *.sqlite
 *.sqlite3
-
-# Don't ignore migrations folder itself, only its contents
-migrations/versions/
+*.sqlite3-journal
 
 # ------------------------
 # Environment / secrets
 # ------------------------
 .env
+.env.*
 *.env
 
 # ------------------------
-# macOS system files
+# macOS / Windows junk (less repo junk)
 # ------------------------
 .DS_Store
 **/.DS_Store
-
-# Prevent Finder metadata
 ._*
-
-# macOS thumbnail cache
-.DS_Store?
 Icon?
 Thumbs.db
 
 # ------------------------
-# VS Code
+# Editors
 # ------------------------
 .vscode/
 .history/
+.idea/
 
 # ------------------------
-# Logs
+# Logs / temp files
 # ------------------------
 *.log
-
-# ------------------------
-# Other
-# ------------------------
 *.swp
 *.swo
 
-# Private course catalog data
-data_catalog/
-*.xlsx
-*.xls
+# ------------------------
+# Course catalog data policy
+#   - Keeps "small, shareable" metadata tracked
+#   - Ignores raw/private Excel inputs
+# ------------------------
+data_catalog/*.xlsx
+data_catalog/*.xls
+data_catalog/archive/
+data_catalog/**/.DS_Store
 
-# for now because its not needed when DB  
-scripts/regen_offerings.py
+# Keep these tracked (they are part of the app’s behavior)
+!data_catalog/aliases.csv
+!data_catalog/catalog_meta.json
+!data_catalog/external_rules.txt
+!data_catalog/optional_courses.json
+

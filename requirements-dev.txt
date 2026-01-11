@@ -1,6 +1,13 @@
+# Inherit all runtime dependencies
 -r requirements.txt
 
+# ------------------------
+# Testing
+# ------------------------
 pytest==8.3.4
+
+# ------------------------
+# Linting / code quality
+# ------------------------
 ruff==0.8.4
-black==24.10.0
-python-dateutil==2.9.0.post0
+
