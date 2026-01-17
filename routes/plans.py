@@ -16,7 +16,9 @@ from extensions import db
 
 @main_bp.route("/")
 def home():
-    # uses templates/home.html
+    # If logged in, go to the real entry point (Dashboard)
+    if current_user.is_authenticated:
+        return redirect(url_for("main.dashboard"))
     return render_template("home.html")
 
 

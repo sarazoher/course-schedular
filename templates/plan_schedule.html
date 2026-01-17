@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
-  <div class="d-flex justify-content-between align-items-center mb-2">
+  <div class="d-flex justify-content-between align-items-center mb-5">
     <h2 class="mb-0">Schedule for "{{ plan.name }}"</h2>
 
     <div class="text-end">
@@ -25,6 +25,7 @@
     </div>
   </div>
 
+{% if has_solution %}
   <p class="mb-3">
     Solver status:
     <span
@@ -53,77 +54,96 @@
     "external": "This course has a prerequisite outside the plan (e.g., service/external requirement)."
   } %}
 
+  {% if warnings_list %}
   <div class="card mb-3">
     <div class="card-header d-flex justify-content-between align-items-center">
       <!-- Upgraded warnings (count + affected courses + kind breakdown if provided) -->
       <div>
         <span>Warnings</span>
-
-        {% if warnings_list and warnings_list|length %}
-          <span class="badge bg-warning text-dark ms-2">{{ warnings_list|length }}</span>
-
-          {% if warn_courses is defined %}
-            <span class="text-muted small ms-2">({{ warn_courses|length }} courses)</span>
-          {% endif %}
-        {% else %}
-          <span class="badge bg-secondary ms-2">0</span>
-        {% endif %}
+        <span class="badge bg-warning text-dark ms-2">{{ warnings_list|length }}</span>
       </div>
-
-      {% if warn_counts_by_kind is defined and warn_counts_by_kind %}
-        <div class="small text-muted">
-          {% for k, v in warn_counts_by_kind.items() %}
-            {% set label = WARNING_LABELS.get(k, k|replace("_", " ")|title) %}
-            <span class="ms-2">{{ label }}: {{ v }}</span>
-          {% endfor %}
-        </div>
-      {% endif %}
     </div>
 
     <div class="card-body small">
-      {% if warnings_list %}
-        <ul class="mb-0">
-          {% for w in warnings_list %}
-            <li class="mb-2">
-              {% if w is mapping %}
-                {% set course = w.get("course") or "?" %}
-                {% set kind = w.get("kind") or w.get("type") or "" %}
-                {% set raw = w.get("raw") %}
-                {% set msg = w.get("message") or w.get("detail") %}
-                {% set label = WARNING_LABELS.get(kind, kind|replace("_", " ")|title if kind else "") %}
-                {% set explain = WARNING_EXPLAINS.get(kind) %}
+      {# Group warnings by kind (collapse by warning type) #}
+      {% set warnings_by_kind = {} %}
+      {% for w in warnings_list %}
+        {% if w is mapping %}
+          {% set k = (w.get("kind") or w.get("type") or "warning") | string %}
+          {% if k not in warnings_by_kind %}
+            {% set _ = warnings_by_kind.update({ k: [] }) %}
+          {% endif %}
+          {% set _ = warnings_by_kind[k].append(w) %}
+        {% endif %}
+      {% endfor %}
 
-                <div>
-                  <strong>{{ course }}</strong>
-                  {% if label %}
-                    — <span class="text-muted">{{ label }}</span>
-                  {% endif %}
-                </div>
+      <div class="accordion" id="warningsAccordion">
+        {% for kind, kind_warnings in warnings_by_kind.items() %}
+          {% set kind_label = WARNING_LABELS.get(kind, kind|replace("_", " ")|title) %}
 
-                {% if explain %}
-                  <div class="text-muted">{{ explain }}</div>
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button
+                class="accordion-button collapsed"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#warn-kind-{{ loop.index }}"
+              >
+                {{ kind_label }}
+              </button>
+            </h2>
+
+            <div
+              id="warn-kind-{{ loop.index }}"
+              class="accordion-collapse collapse"
+              data-bs-parent="#warningsAccordion"
+            >
+              <div class="accordion-body small">
+                {% if WARNING_EXPLAINS.get(kind) %}
+                  <div class="text-muted-explain mb-3">
+                    {{ WARNING_EXPLAINS.get(kind) }}
+                  </div>
                 {% endif %}
 
-                {% if raw %}
-                  <div class="text-muted">
-                    <code>{{ raw }}</code>
-                  </div>
-                {% elif msg %}
-                  <div class="text-muted">
-                    {{ msg }}
-                  </div>
-                {% endif %}
-              {% else %}
-                {{ w }}
-              {% endif %}
-            </li>
-          {% endfor %}
-        </ul>
-      {% else %}
-        <div class="text-muted">No warnings.</div>
-      {% endif %}
+                <ul class="mb-0">
+                  {% for w in kind_warnings %}
+                    {% set course = w.get("course") or "?" %}
+                    {% set raw = w.get("raw") %}
+                    {% set msg = w.get("message") or w.get("detail") %}
+                    {% set course_code = (course|string)|trim %}
+
+                    <li class="mb-2">
+                      <div class="fw-semibold">
+                        {{ course_code }}
+                        {% if course_name_by_code.get(course_code) %}
+                          — {{ course_name_by_code.get(course_code) }}
+                        {% endif %}
+                      </div>
+
+                      {% if raw %}
+                        {% set raw_code = (raw|string)|trim %}
+                        <div class="text-muted">
+                          <code class="warn-related-code">{{ raw_code }}</code>
+                          {% if course_name_by_code.get(raw_code) %}
+                            <span class="ms-1 warn-related-name">— {{ course_name_by_code.get(raw_code) }}</span>
+                          {% endif %}
+                        </div>
+                      {% elif msg %}
+                        <div class="text-muted">{{ msg }}</div>
+                      {% endif %}
+                    </li>
+                  {% endfor %}
+                </ul>
+
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
     </div>
   </div>
+  {% endif %}
+ 
 
 
   {% set hints = infeasible_hints | default([]) %}
@@ -257,8 +277,8 @@
                   </li>
                 {% endfor %}
               {% else %}
-                <li class="list-group-item text-muted">
-                  No courses scheduled in this semester.
+                <li class="list-group-item text-muted small">
+                  No courses in this semester.
                 </li>
               {% endif %}
             </ul>
@@ -267,4 +287,5 @@
       {% endfor %}
     </div>
   {% endif %}
+{% endif %}
 {% endblock %}

@@ -15,6 +15,25 @@
 }
 
 /* ==============================
+   Auth + Create forms (consistent layout)
+   ============================== */
+
+.form-shell {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.form-card {
+  padding: 1.25rem 1.25rem;
+}
+
+.form-actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  margin-top: 0.25rem;
+}
+/* ==============================
    Global layout tweaks
    ============================== */
 
@@ -146,4 +165,99 @@ form + .btn {
 .badge.solver-unknown {
   background-color: var(--unknown);
   color: white;
+}
+
+/* ==============================
+            Warnings
+   ============================== */
+
+/* Warnings accordion typography */
+#warningsAccordion .accordion-button{
+  font-size: 1rem;        /* smaller than the default big header feel */
+  font-weight: 600;
+  padding-top: .75rem;
+  padding-bottom: .75rem;
+}
+
+.warn-explain{
+  font-size: 0.95rem;     /* bump explanation a bit */
+  line-height: 1.35;
+}
+
+/* Explanation shown once per warning-kind panel */
+.warn-kind-explain{
+  font-size: 0.95rem;     /* keep it aligned with header sizing */
+  line-height: 1.45;
+  color: #6c757d;
+  background: #f8f9fa;
+  border-left: 4px solid #ffc107;
+  padding: .5rem .75rem;
+  border-radius: .25rem;
+}
+
+/* Only the related/missing/external/unresolved token should pop */
+.warn-related-code{
+  color: #d63384;        /* Bootstrap pink */
+  background: none;
+  padding: 0;
+}
+.warn-related-name{
+  color: #d63384;
+}
+
+/* ==============================
+   Dashboard plan cards
+   ============================== */
+
+.plan-card {
+  background-color: #fdfdfd;               /* subtle contrast vs page bg */
+  border: 1px solid #e2e5ea;                /* clearer edge */
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.12s ease,
+    background-color 0.12s ease;
+}
+
+.plan-card:hover {
+  background-color: #fafafa;                /* slightly darker on hover */
+  transform: translateY(-3px);
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.16);
+}
+
+/* ==============================
+   Plan card numbering
+   ============================== */
+
+.plan-card-index{
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #6b7280;
+  background: rgba(0,0,0,0.06);
+  border-radius: 999px;
+  padding: 0.25rem 0.55rem;
+}
+
+
+/* ==============================
+   Plan card sizing tweaks
+   ============================== */
+
+/* Make plan cards a bit narrower and taller (regardless of Bootstrap breakpoints) */
+.plan-card {
+  max-width: 320px;      /* narrower */
+  min-height: 190px;     /* taller */
+  margin-left: auto;     /* center inside the column */
+  margin-right: auto;    /* center inside the column */
+}
+
+/* Create plan button: taller without getting wider */
+.btn-create-plan {
+  padding-top: 0.6rem;
+  padding-bottom: 0.6rem;
+  padding-left: 1.1rem;
+  padding-right: 1.1rem;
 }

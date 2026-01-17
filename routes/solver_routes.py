@@ -105,23 +105,38 @@ def view_saved_schedule(plan_id: int):
         .order_by(PlanSolution.created_at.desc())
         .first()
     )
-    if latest is None or not latest.solution_json:
-        flash("No saved schedule for this plan yet. Click Solve first.", "info")
-        return redirect(url_for("main.view_plan", plan_id=plan.id))
+    has_solution = bool(latest and latest.solution_json)
 
-    payload = json.loads(latest.solution_json)
+    payload = {}
+    semester_labels = {}
+    courses_by_semester = {}
+    warnings = []
+    meta = {}
+    status = None
+    semesters = []
+    infeasible_hints = []
 
-    # Convert keys back to ints for template logic.
-    semester_labels = {int(k): v for k, v in (payload.get("semester_labels") or {}).items()}
-    courses_by_semester = {int(k): v for k, v in (payload.get("courses_by_semester") or {}).items()}
-    warnings = json.loads(latest.warnings_json) if latest.warnings_json else []
-    meta = json.loads(latest.meta_json) if latest.meta_json else {}
+    if has_solution:
+        payload = json.loads(latest.solution_json)
+        status = latest.status
+        semesters = payload.get("semesters", [])
+        infeasible_hints = payload.get("infeasible_hints", [])
 
+        # Convert keys back to ints for template logic.
+        semester_labels = {int(k): v for k, v in (payload.get("semester_labels") or {}).items()}
+        courses_by_semester = {int(k): v for k, v in (payload.get("courses_by_semester") or {}).items()}
+        warnings = json.loads(latest.warnings_json) if latest.warnings_json else []
+        meta = json.loads(latest.meta_json) if latest.meta_json else {}
     optional_codes = get_optional_course_codes()
 
     catalog_meta = load_catalog_meta()
     catalog_meta_courses = catalog_meta.get("courses") or {}
 
+    # Code -> name mapping from DB (used to show names in Warnings for both
+    # the course being scheduled and the raw prereq/missing course code)
+    catalog_rows = CatalogCourse.query.with_entities(CatalogCourse.code, CatalogCourse.name).all()
+    course_name_by_code = {str(code): (name or "") for code, name in catalog_rows}
+     
     # Collect which courses have warnings (for schedule highlighting + counts)
     warn_courses: set[str] = set()
     warn_counts_by_kind: dict[str, int] = {}
@@ -140,17 +155,19 @@ def view_saved_schedule(plan_id: int):
     return render_template(
         "plan_schedule.html",
         plan=plan,
-        status=latest.status,
-        semesters=payload.get("semesters", []),
+        has_solution=has_solution,
+        status=status,
+        semesters=semesters,
         semester_labels=semester_labels,
         courses_by_semester=courses_by_semester,
-        infeasible_hints=payload.get("infeasible_hints", []),
+        infeasible_hints=infeasible_hints,
         warnings=warnings,
         warn_courses=warn_courses,
         warn_counts_by_kind=warn_counts_by_kind,
         optional_codes=optional_codes,
         meta=meta,
         catalog_meta_courses=catalog_meta_courses,
+        course_name_by_code=course_name_by_code,
     )
 
 
