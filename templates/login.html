@@ -3,22 +3,26 @@
   <div class="form-shell">
     <h2 class="mb-4">Login</h2>
 
-    <div class="card form-card">
-      <form method="POST">
-        <div class="mb-3">
-          <label class="form-label">Email</label>
-          <input class="form-control" type="email" name="email" required>
-        </div>
+    <form method="POST" class="form-card">
+      <div class="mb-4">
+        <label class="form-label">Email</label>
+        <input class="form-control form-control-lg"
+               type="email"
+               name="email"
+               required>
+      </div>
 
-        <div class="mb-3">
-          <label class="form-label">Password</label>
-          <input class="form-control" type="password" name="password" required>
-        </div>
+      <div class="mb-4">
+        <label class="form-label">Password</label>
+        <input class="form-control form-control-lg"
+               type="password"
+               name="password"
+               required>
+      </div>
 
-        <div class="form-actions">
-          <button class="btn btn-primary" type="submit">Login</button>
-        </div>
-      </form>
-    </div>
+      <button class="btn btn-primary btn-lg btn-balanced" type="submit">
+        Login
+      </button>
+    </form>
   </div>
 {% endblock %}

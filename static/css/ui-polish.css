@@ -1,0 +1,51 @@
+/* =========================================
+   UI polish helpers (non-semantic)
+   ========================================= */
+
+/* ---------- Vertical rhythm ---------- */
+
+/* Space between page title and next block */
+.page-stack > * + * {
+  margin-top: 1.25rem;
+}
+
+/* ---------- Button proportions ---------- */
+
+/* Taller, not wider (CTA buttons) */
+.btn-tall {
+  padding-top: 0.65rem;
+  padding-bottom: 0.65rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+/* Large buttons but visually tighter */
+.btn-lg.btn-balanced {
+  padding-top: 0.6rem;
+  padding-bottom: 0.6rem;
+  padding-left: 1.2rem;
+  padding-right: 1.2rem;
+}
+
+/* (Intentionally empty: dashboard card visuals live in main.css) */
+
+/* ---------- Home / auth alignment ---------- */
+
+.centered-actions {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+/* ---------- Headings ---------- */
+
+.page-title {
+  margin-bottom: 0.5rem;
+}
+
+/* ---------- Dashboard layout (tile width) ---------- */
+/* Fixed-width columns so cards don't change width across breakpoints */
+.plan-col {
+  width: 320px;      /* <-- set this to the width you like */
+  max-width: 100%;   /* ensures it behaves on very small screens */
+}

@@ -7,7 +7,14 @@
       Login or register to create degree plans and generate schedules.
     </p>
 
-    <a class="btn btn-primary me-2" href="{{ url_for('auth.login') }}">Login</a>
-    <a class="btn btn-outline-secondary" href="{{ url_for('auth.register') }}">Register</a>
+    <div class="centered-actions">
+      <a class="btn btn-primary btn-tall" href="{{ url_for('auth.login') }}">
+        Login
+      </a>
+      <a class="btn btn-outline-secondary btn-tall"
+         href="{{ url_for('auth.register') }}">
+        Register
+      </a>
+    </div>
   </div>
 {% endblock %}

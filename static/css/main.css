@@ -217,12 +217,35 @@ form + .btn {
     transform 0.12s ease,
     box-shadow 0.12s ease,
     background-color 0.12s ease;
+
+  /* Keep cards solid inside Bootstrap columns (no overlap / no clamp) */
+  width: 100%;
+  min-width: 0;
+
+  /* keep your “taller” feel without narrowing */
+  min-height: 190px;
+
+  /* unify radius here (ui-polish no longer overrides it) */
+  border-radius: 16px;
+
+  /* for z-index to work on hover */
+  position: relative;
 }
 
 .plan-card:hover {
-  background-color: #fafafa;                /* slightly darker on hover */
+  background-color: #fafafa;
   transform: translateY(-3px);
   box-shadow: 0 14px 32px rgba(0, 0, 0, 0.16);
+  z-index: 2; /* prevents visual overlap with neighbors */
+}
+
+/* Keep dashboard action buttons stable (single row, no wrap) */
+.plan-card-actions {
+  flex-wrap: nowrap;
+}
+.plan-card-actions .btn {
+  white-space: nowrap;
+  flex: 0 1 auto;
 }
 
 /* ==============================
@@ -241,23 +264,38 @@ form + .btn {
   padding: 0.25rem 0.55rem;
 }
 
-
-/* ==============================
-   Plan card sizing tweaks
-   ============================== */
-
-/* Make plan cards a bit narrower and taller (regardless of Bootstrap breakpoints) */
-.plan-card {
-  max-width: 320px;      /* narrower */
-  min-height: 190px;     /* taller */
-  margin-left: auto;     /* center inside the column */
-  margin-right: auto;    /* center inside the column */
-}
-
 /* Create plan button: taller without getting wider */
 .btn-create-plan {
   padding-top: 0.6rem;
   padding-bottom: 0.6rem;
   padding-left: 1.1rem;
   padding-right: 1.1rem;
+}
+
+/* ==============================
+   Auth / Create form pages
+   ============================== */
+
+.form-page {
+  max-width: 520px;
+  margin: 0 auto;
+  padding-top: 2rem;
+}
+
+.form-card {
+  background: var(--surface);
+  padding: 1.75rem;
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+}
+
+.form-control-lg {
+  padding: 0.65rem 0.85rem;
+  font-size: 0.95rem;
+}
+
+.btn-lg {
+  padding: 0.55rem 1.1rem;
+  font-size: 0.95rem;
+  border-radius: 8px;
 }
