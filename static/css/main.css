@@ -51,6 +51,7 @@ html[data-theme="dark"] {
 body {
   background-color: var(--bg);
   color: var(--text-strong);
+  font-size: 0.95rem;
 }
 
 /* Cards adapt automatically */
@@ -83,7 +84,6 @@ html[data-theme="dark"] .form-control::placeholder {
 .form-shell {
   max-width: 720px;
   margin: 0 auto;
-  padding-top: 2.5rem;
 }
 
 .form-actions {
@@ -95,11 +95,6 @@ html[data-theme="dark"] .form-control::placeholder {
 /* ==============================
    Global layout tweaks
    ============================== */
-
-body {
-  background-color: var(--bg);
-  font-size: 0.95rem;
-}
 
 /* Improve readability of collapsed navbar menu */
 .container {
@@ -385,7 +380,7 @@ html[data-theme="dark"] .plan-card-index{
 .form-page {
   max-width: 520px;
   margin: 0 auto;
-  padding-top: 2rem;
+  padding-top: 2.5rem;
 }
 
 .form-card {
