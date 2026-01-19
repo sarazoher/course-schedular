@@ -1,9 +1,11 @@
 :root {
-  /* Brand */
-  --brand: #7030a0;
+  --brand: #7030a0;    /* Brand */
+  --teal-deep: #006656;    /* deep green-teal */
 
   /* Neutrals */
   --bg: #f8f9fb;
+  --surface: #ffffff;
+  --surface-2: #f3f4f6;
   --card-border: #e5e7eb;
   --text-strong: #374151;
   --muted: #6b7280;
@@ -12,7 +14,67 @@
   --ok: #16a34a;
   --bad: #dc2626;
   --unknown: #6b7280;
+
+
 }
+
+/* ==============================
+   Theme variables (manual toggle)
+   ============================== */
+
+html[data-theme="light"] {
+  --bg: #f8f9fb;
+  --surface: #ffffff;
+  --surface-2: #f3f4f6;
+  --card-border: #e5e7eb;
+  --text-strong: #374151;
+  --muted: #6b7280;
+}
+
+html[data-theme="dark"] {
+  /* Purple-tinted dark background */
+  --bg: #16121d;
+
+  /* Card surfaces (soft, not black) */
+  --surface: rgba(255, 255, 255, 0.07);
+  --surface-2: rgba(255, 255, 255, 0.10);
+
+  /* Borders */
+  --card-border: rgba(255, 255, 255, 0.18);
+
+  /* Text */
+  --text-strong: rgba(255, 255, 255, 0.92);
+  --muted: rgba(255, 255, 255, 0.70);
+}
+
+/* Apply variables globally */
+body {
+  background-color: var(--bg);
+  color: var(--text-strong);
+}
+
+/* Cards adapt automatically */
+.card,
+.form-card {
+  background: var(--surface);
+  border-color: var(--card-border);
+}
+
+.card-header {
+  background: var(--surface-2);
+}
+
+/* Inputs in dark mode */
+html[data-theme="dark"] .form-control {
+  background-color: rgba(255, 255, 255, 0.06);
+  border-color: var(--card-border);
+  color: var(--text-strong);
+}
+
+html[data-theme="dark"] .form-control::placeholder {
+  color: var(--muted);
+}
+
 
 /* ==============================
    Auth + Create forms (consistent layout)
@@ -21,10 +83,7 @@
 .form-shell {
   max-width: 720px;
   margin: 0 auto;
-}
-
-.form-card {
-  padding: 1.25rem 1.25rem;
+  padding-top: 2.5rem;
 }
 
 .form-actions {
@@ -53,14 +112,14 @@ body {
 
 .card {
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: 1px solid var(--card-border);
   border-radius: 14px;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
 }
 
 .card-header {
   background: var(--surface-2);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--card-border);
   font-weight: 600;
   color: var(--text-strong);
 }
@@ -128,6 +187,49 @@ form + .btn {
 
 .table {
   background-color: #ffffff;
+}
+
+/* Dark-mode: Bootstrap table baseline is bright; align it with theme surfaces */
+html[data-theme="dark"] .table {
+  background-color: transparent;
+  color: var(--text-strong);
+}
+html[data-theme="dark"] .table > :not(caption) > * > * {
+  background-color: transparent;
+  color: var(--text-strong);
+  border-color: var(--card-border);
+}
+
+/* Dark-mode: Bootstrap utility surfaces */
+html[data-theme="dark"] .bg-light,
+html[data-theme="dark"] .bg-body-secondary,
+html[data-theme="dark"] .bg-body-tertiary {
+  background-color: var(--surface-2) !important;
+  color: var(--text-strong);
+}
+html[data-theme="dark"] .border {
+  border-color: var(--card-border) !important;
+}
+
+/* Dark-mode: Accordion (Schedule warnings) */
+html[data-theme="dark"] .accordion-item {
+  background-color: var(--surface);
+  border-color: var(--card-border);
+}
+html[data-theme="dark"] .accordion-button {
+  background-color: var(--surface-2);
+  color: var(--text-strong);
+}
+html[data-theme="dark"] .accordion-button:not(.collapsed) {
+  background-color: var(--surface-2);
+  color: var(--text-strong);
+}
+html[data-theme="dark"] .accordion-button::after {
+  filter: invert(1);
+}
+html[data-theme="dark"] .accordion-body {
+  background-color: var(--surface);
+  color: var(--text-strong);
 }
 
 .table th {
@@ -210,8 +312,8 @@ form + .btn {
    ============================== */
 
 .plan-card {
-  background-color: #fdfdfd;               /* subtle contrast vs page bg */
-  border: 1px solid #e2e5ea;                /* clearer edge */
+  background-color: var(--surface);               /* subtle contrast vs page bg */
+  border: 1px solid var(--card-border);          /* clearer edge */
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
   transition:
     transform 0.12s ease,
@@ -233,7 +335,7 @@ form + .btn {
 }
 
 .plan-card:hover {
-  background-color: #fafafa;
+  background-color: var(--surface-2);
   transform: translateY(-3px);
   box-shadow: 0 14px 32px rgba(0, 0, 0, 0.16);
   z-index: 2; /* prevents visual overlap with neighbors */
@@ -258,10 +360,14 @@ form + .btn {
   left: 12px;
   font-size: 0.8rem;
   font-weight: 700;
-  color: #6b7280;
+  color: var(--muted);
   background: rgba(0,0,0,0.06);
   border-radius: 999px;
   padding: 0.25rem 0.55rem;
+}
+
+html[data-theme="dark"] .plan-card-index{
+  background: rgba(255,255,255,0.10);
 }
 
 /* Create plan button: taller without getting wider */
@@ -284,9 +390,41 @@ form + .btn {
 
 .form-card {
   background: var(--surface);
-  padding: 1.75rem;
-  border-radius: 14px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+  padding: 2.25rem;
+  border-radius: 16px;
+  border: 1px solid var(--card-border);
+  box-shadow: 0 12px 30px rgba(0,0,0,0.08);
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+.auth-title {
+  text-align: center;
+  font-weight: 800;
+  font-size: 2.25rem;
+  margin-bottom: 1.5rem;
+  color: var(--text-strong);
+}
+
+.auth-divider {
+  margin: 1.25rem 0 1rem;
+  border-color: var(--card-border);
+}
+
+.auth-footer {
+  text-align: center;
+  font-size: 0.95rem;
+  color: var(--muted);
+}
+
+.auth-footer a {
+  color: var(--brand);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.auth-footer a:hover {
+  text-decoration: underline;
 }
 
 .form-control-lg {
@@ -298,4 +436,17 @@ form + .btn {
   padding: 0.55rem 1.1rem;
   font-size: 0.95rem;
   border-radius: 8px;
+}
+
+/* ==============================
+   Landing page vertical offset
+   ============================== */
+
+.home-landing {
+  margin-top: 18vh;
+}
+
+/* Landing page title emphasis */
+.home-landing h1 {
+  font-weight: 800;
 }

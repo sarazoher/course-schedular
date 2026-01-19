@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 {% block content %}
-  <div class="form-shell">
-    <h2 class="mb-4">Register</h2>
-
+  <div class="form-page">
     <form method="POST" class="form-card">
+      <h2 class="auth-title">Register</h2>
+
       <div class="mb-4">
         <label class="form-label">Email</label>
         <input class="form-control form-control-lg"
@@ -20,9 +20,15 @@
                required>
       </div>
 
-      <button class="btn btn-primary btn-lg btn-balanced" type="submit">
+      <button class="btn btn-primary btn-lg btn-balanced w-100" type="submit">
         Create account
       </button>
+
+      <hr class="auth-divider">
+      <div class="auth-footer">
+        <span class="text-muted">Already have an account?</span>
+        <a href="{{ url_for('auth.login') }}">Login</a>
+      </div>
     </form>
   </div>
 {% endblock %}

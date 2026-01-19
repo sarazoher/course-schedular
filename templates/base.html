@@ -43,6 +43,14 @@
         <!-- Collapsible links -->
         <div class="collapse navbar-collapse" id="navbarNav">
           <ul class="navbar-nav ms-auto">
+            <li class="nav-item me-2">
+              <button
+                id="themeToggle"
+                class="btn btn-sm btn-outline-light"
+                type="button">
+                Dark mode
+              </button>
+            </li>
             {% if current_user.is_authenticated %}
               <li class="nav-item">
                 <a class="nav-link" href="{{ url_for('main.dashboard') }}">Dashboard</a>
@@ -100,5 +108,33 @@
         triggers.forEach((el) => new bootstrap.Popover(el));
       });
     </script>
+    
+    <script>
+      (function () {
+        const root = document.documentElement;
+        const toggle = document.getElementById("themeToggle");
+
+        // Decide initial theme
+        const stored = localStorage.getItem("theme");
+        const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        const initial = stored || (prefersDark ? "dark" : "light");
+
+        root.setAttribute("data-theme", initial);
+
+        if (!toggle) return;
+
+        toggle.textContent = initial === "dark" ? "Light mode" : "Dark mode";
+
+        toggle.addEventListener("click", () => {
+          const current = root.getAttribute("data-theme");
+          const next = current === "dark" ? "light" : "dark";
+
+          root.setAttribute("data-theme", next);
+          localStorage.setItem("theme", next);
+          toggle.textContent = next === "dark" ? "Light mode" : "Dark mode";
+        });
+      })();
+    </script>
+
   </body>
 </html>
