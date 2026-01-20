@@ -54,6 +54,31 @@ body {
   font-size: 0.95rem;
 }
 
+/* ==============================
+   Global readability (dark mode)
+   ============================== */
+
+html[data-theme="dark"] .text-muted,
+html[data-theme="dark"] .form-text,
+html[data-theme="dark"] small.text-muted {
+  color: var(--muted) !important;
+}
+
+/* Bootstrap's .text-dark is unreadable on dark backgrounds */
+html[data-theme="dark"] .text-dark {
+  color: var(--text-strong) !important;
+}
+
+/* Links: avoid "near-black" defaults on dark backgrounds */
+html[data-theme="dark"] a {
+  color: #c7a6ff;
+}
+
+html[data-theme="dark"] a:hover,
+html[data-theme="dark"] a:focus {
+  color: #e0ccff;
+}
+
 /* Cards adapt automatically */
 .card,
 .form-card {
@@ -206,6 +231,20 @@ html[data-theme="dark"] .border {
   border-color: var(--card-border) !important;
 }
 
+/* Dark-mode: list-groups (Schedule + other card lists) */
+html[data-theme="dark"] .list-group-item {
+  background-color: var(--surface);
+  color: var(--text-strong);
+  border-color: var(--card-border);
+}
+
+/* Dark-mode: alerts (Bootstrap defaults are too bright) */
+html[data-theme="dark"] .alert {
+  background-color: var(--surface-2);
+  border-color: var(--card-border);
+  color: var(--text-strong);
+}
+
 /* Dark-mode: Accordion (Schedule warnings) */
 html[data-theme="dark"] .accordion-item {
   background-color: var(--surface);
@@ -285,11 +324,16 @@ html[data-theme="dark"] .accordion-body {
 .warn-kind-explain{
   font-size: 0.95rem;     /* keep it aligned with header sizing */
   line-height: 1.45;
-  color: #6c757d;
-  background: #f8f9fa;
+  color: var(--muted);
+  background: var(--surface-2);
   border-left: 4px solid #ffc107;
   padding: .5rem .75rem;
   border-radius: .25rem;
+}
+
+/* Template uses this class name; keep it readable in both themes */
+.text-muted-explain {
+  color: var(--muted);
 }
 
 /* Only the related/missing/external/unresolved token should pop */
