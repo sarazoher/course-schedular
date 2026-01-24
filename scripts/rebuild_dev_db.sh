@@ -7,38 +7,45 @@ UPLOAD_DIR="instance/uploads"
 echo "==> Removing dev DB..."
 rm -f "$DB_PATH"
 
-echo "==> Recreating schema..."
-python init_db.py
-
-echo "==> Checking for uploaded catalog..."
 mkdir -p "$UPLOAD_DIR"
 
-# Safely find the most recent uploaded .xlsx/.xlsm (if any)
+# -----------------------------------------
+# Optional: clear plan-scoped upload artifacts
+#
+# Usage:
+#   CLEAR_UPLOADS=1 ./scripts/rebuild_dev_db.sh
+#   NUKE_UPLOADS=1  ./scripts/rebuild_dev_db.sh
+# -----------------------------------------
+if [ "${NUKE_UPLOADS:-0}" = "1" ]; then
+  echo "==> NUKE_UPLOADS=1: removing ALL files in $UPLOAD_DIR ..."
+  rm -f "$UPLOAD_DIR"/*
+elif [ "${CLEAR_UPLOADS:-0}" = "1" ]; then
+  echo "==> CLEAR_UPLOADS=1: removing plan-scoped artifacts in $UPLOAD_DIR ..."
+  rm -f "$UPLOAD_DIR"/plan_*_catalog_meta.json \
+        "$UPLOAD_DIR"/plan_*_manual_schedule.json \
+        "$UPLOAD_DIR"/plan_*_catalog_raw.xlsx 2>/dev/null || true
+fi
+
+echo "==> Recreating schema..."
+python3 init_db.py
+
+echo "==> Checking for uploaded catalog..."
 LATEST_XLSX="$(
   find "$UPLOAD_DIR" -maxdepth 1 -type f \( -name '*.xlsx' -o -name '*.xlsm' \) -print0 \
     | xargs -0 ls -1t 2>/dev/null \
     | head -n 1 || true
 )"
 
-if [ -n "$LATEST_XLSX" ]; then
-  echo "==> Found uploaded catalog: $LATEST_XLSX"
-  echo "==> DB is empty after reset."
-  echo "==> Preferred flow: import via UI (admin upload)."
-
-  if [ "${FORCE_SEED:-0}" = "1" ]; then
-    echo "==> FORCE_SEED=1 set; seeding anyway."
-    python seed_catalog_db.py 2>/dev/null || python seed_vatalog_db.py 2>/dev/null || \
-      echo "==> No seed script found. Skipping."
-    echo "==> Seed attempt complete."
-  else
-    echo "==> Skipping seed (upload exists). To seed anyway: FORCE_SEED=1 ./scripts/rebuild_dev_db.sh"
+if [ "${SKIP_SEED:-0}" = "1" ]; then
+  echo "==> SKIP_SEED=1 set; skipping seed."
+  if [ -n "$LATEST_XLSX" ]; then
+    echo "==> Note: uploads exist (latest: $LATEST_XLSX) but DB will stay empty."
   fi
 else
-  echo "==> No uploaded catalog found."
   echo "==> Seeding catalog (bootstrap)..."
-  python seed_catalog_db.py 2>/dev/null || python seed_vatalog_db.py 2>/dev/null || \
+  python3 seed_catalog_db.py 2>/dev/null || python3 seed_vatalog_db.py 2>/dev/null || \
     echo "==> No seed script found. Skipping."
   echo "==> Seed attempt complete."
 fi
 
-echo "==> Done. Run: python app.py"
+echo "==> Done. Run: python3 app.py"

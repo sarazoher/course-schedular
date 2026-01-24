@@ -21,6 +21,7 @@ from utils.external_rules import load_external_rules
 from utils.alias_rules import load_aliases_csv
 from utils.req_parser import parse_req_text
 from services.req_ir import Req, ReqLeaf, ReqAnd, ReqOr
+from services.catalog_meta import load_catalog_for_plan
 from utils.default_offerings import default_semesters_for_code
 
 # -----------------------------
@@ -148,7 +149,6 @@ def add_ir_prereq_constraints(
 
             before = scheduled_before_expr(x, allowed_semesters, node.code, s)
             # before is 0/1, enforce z == before
-            ##################################################
             model += z <= before, _uniq(f"sat_leaf_le_{target_course}_{node.code}_{s}_{run_id}_{node_tag}")
             model += z >= before, _uniq(f"sat_leaf_ge_{target_course}_{node.code}_{s}_{run_id}_{node_tag}")
             return z
@@ -198,7 +198,7 @@ def build_model(
     courses: List[str],
     prereq_trees: Dict[str, Req],
     allowed_semesters: Dict[str, List[int]],
-    credits: Dict[str, int],
+    course_credits: Dict[str, int],
     max_credits_per_semester: Dict[int, int],
     *,
     use_credit_limits: bool,
@@ -241,7 +241,7 @@ def build_model(
         for s in semesters:
             model += (
                 lpSum(
-                    credits[c] * x[c][s]
+                    course_credits[c] * x[c][s]
                     for c in courses
                     if s in allowed_semesters[c]
                 )
@@ -328,105 +328,82 @@ def _default_allowed_semesters_for_code(
     )
 
 # -----------------------------
-# Inputs from DB 
+# Inputs from DB
 # -----------------------------
 
 def build_inputs_from_plan(plan_id: int) -> Dict:
     """
     Load data from the database for a given DegreePlan and convert it into
     the exact dictionaries that build_model(...) expects.
-
-    - Courses/credits come from PlanCourse -> CatalogCourse (source of truth)
-    - If a PlanCourse isn't linked to a legacy Course yet, we auto-create the legacy Course row
-      and default offerings, then link it (so existing UI keeps working).
-    - Prereqs in solver come from catalog prereq_text -> IR at solve-time (unchanged)
     """
-    # Lazy imports to avoid circular imports
+    from types import SimpleNamespace
     from extensions import db
     from models.degree_plan import DegreePlan
     from models.plan_course import PlanCourse
     from models.catalog_course import CatalogCourse
     from models.course import Course
     from models.plan_constraint import PlanConstraint
-    from services.catalog_meta import load_catalog_meta
 
     plan = DegreePlan.query.get(plan_id)
     if plan is None:
         raise ValueError(f"DegreePlan with id={plan_id} not found")
 
-    constraints: Optional[PlanConstraint] = PlanConstraint.query.filter_by(
-        degree_plan_id=plan.id
-    ).first()
+    constraints = PlanConstraint.query.filter_by(degree_plan_id=plan.id).first()
 
-    total_semesters = constraints.total_semesters if (constraints and constraints.total_semesters) else 6
+    total_semesters = (
+        constraints.total_semesters if (constraints and constraints.total_semesters) else 6
+    )
     default_max_credits = (
         constraints.max_credits_per_semester
         if (constraints and constraints.max_credits_per_semester)
         else 9999
     )
-    
+
     years = constraints.years if constraints else None
     semesters_per_year = constraints.semesters_per_year if constraints else None
 
-    # Defensive: if structure exists, derive horizon even if DB has stale value
     if years and semesters_per_year:
         total_semesters = int(years) * int(semesters_per_year)
     else:
         total_semesters = int(total_semesters)
 
-
-    max_credits_per_semester: Dict[int, int] = {
-        s: default_max_credits for s in range(1, total_semesters + 1)
+    max_credits_per_semester = {
+        s: int(default_max_credits) for s in range(1, total_semesters + 1)
     }
 
-    # ---- source of truth: PlanCourse -> CatalogCourse ----
+    # ---- Plan courses ----
     plan_courses = (
         PlanCourse.query
         .filter_by(plan_id=plan.id)
-        .join(CatalogCourse, PlanCourse.catalog_course_id == CatalogCourse.id)
-        .order_by(CatalogCourse.code.asc())
+        .outerjoin(CatalogCourse, PlanCourse.catalog_course_id == CatalogCourse.id)
+        .outerjoin(Course, PlanCourse.legacy_course_id == Course.id)
+        .order_by(CatalogCourse.code.asc(), Course.code.asc())
         .all()
     )
     if not plan_courses:
         raise ValueError(f"No courses defined for plan_id={plan_id}")
 
-    # metadata used only for default offerings window
-    meta = load_catalog_meta()
-    meta_courses = meta.get("courses") or {}
+    # ---- Active catalog (PLAN SEED OR GLOBAL) ----
+    catalog_meta = load_catalog_for_plan(plan.id)
+    meta_courses = catalog_meta.get("courses") or {}
 
-    # ---- Ensure every PlanCourse has a legacy Course row ----
+    # ---- Ensure legacy rows for catalog-linked courses ----
     created_any = False
     for pc in plan_courses:
-        if pc.legacy_course_id:
+        if pc.legacy_course_id or pc.catalog_course is None:
             continue
 
         code = str(pc.catalog_course.code).strip()
-        name = pc.catalog_course.name
-        cat_credits = pc.catalog_course.credits
-
-        # legacy Course.credits is Integer in your model, so store safely.
-        # (solver can still use float credits from catalog, DB legacy stays int)
-        legacy_credits_int = 0
-        try:
-            if cat_credits is not None:
-                legacy_credits_int = int(float(cat_credits))
-        except Exception:
-            legacy_credits_int = 0
-
         legacy = Course.query.filter_by(degree_plan_id=plan.id, code=code).first()
         if legacy is None:
             legacy = Course(
                 degree_plan_id=plan.id,
                 code=code,
-                name=name,
-                credits=legacy_credits_int,
+                name=pc.catalog_course.name,
+                credits=int(float(pc.catalog_course.credits or 0)),
             )
             db.session.add(legacy)
             db.session.flush()
-
-            # IMPORTANT: do NOT auto-create default CourseOffering rows here.
-            # Defaults are computed on the fly (academic_year + plan structure) unless
-            # the user explicitly overrides offerings in the UI.
 
         pc.legacy_course_id = legacy.id
         created_any = True
@@ -434,30 +411,58 @@ def build_inputs_from_plan(plan_id: int) -> Dict:
     if created_any:
         db.session.commit()
 
-    # ---- Build solver inputs from PlanCourse ----
-    courses: List[str] = [str(pc.catalog_course.code).strip() for pc in plan_courses]
-
-    # credits: prefer catalog float, fall back to legacy int if missing
-    credits: Dict[str, Any] = {}
+    # ---- Solver course list ----
+    courses: List[str] = []
+    seen: set[str] = set()
     for pc in plan_courses:
-        code = str(pc.catalog_course.code).strip()
-        if pc.catalog_course.credits is not None:
-            credits[code] = float(pc.catalog_course.credits)
-        elif pc.legacy_course is not None:
-            credits[code] = pc.legacy_course.credits
-        else:
-            credits[code] = 0
+        code = (
+            str(pc.catalog_course.code).strip()
+            if pc.catalog_course is not None
+            else str(pc.legacy_course.code).strip()
+        )
+        if code and code not in seen:
+            seen.add(code)
+            courses.append(code)
 
-    # allowed semesters: from offerings if present, otherwise default window
+    if not courses:
+        raise ValueError(f"No usable course codes for plan_id={plan_id}")
+
+    # ---- Credits ----
+    course_credits: Dict[str, float] = {}
+    for pc in plan_courses:
+        code = (
+            str(pc.catalog_course.code).strip()
+            if pc.catalog_course is not None
+            else str(pc.legacy_course.code).strip()
+        )
+        if not code:
+            continue
+
+        if pc.catalog_course and pc.catalog_course.credits is not None:
+            course_credits[code] = float(pc.catalog_course.credits)
+        else:
+            course_credits[code] = pc.legacy_course.credits
+
+    for c in courses:
+        course_credits.setdefault(c, 0)
+
+    # ---- Allowed semesters ----
     allowed_semesters: Dict[str, List[int]] = {}
     for pc in plan_courses:
-        code = str(pc.catalog_course.code).strip()
-        sems: List[int] = []
-        if pc.legacy_course is not None:
-            for off in pc.legacy_course.offerings:
-                sems.append(int(off.semester_number))
+        code = (
+            str(pc.catalog_course.code).strip()
+            if pc.catalog_course is not None
+            else str(pc.legacy_course.code).strip()
+        )
 
-        sems = sorted(set(sems))
+        sems = []
+        if pc.legacy_course:
+            for off in pc.legacy_course.offerings:
+                try:
+                    sems.append(int(off.semester_number))
+                except Exception:
+                    pass
+
         if not sems:
             sems = _default_allowed_semesters_for_code(
                 code=code,
@@ -466,36 +471,66 @@ def build_inputs_from_plan(plan_id: int) -> Dict:
                 semesters_per_year=semesters_per_year,
             )
 
-        allowed_semesters[code] = sems
+        allowed_semesters[code] = sorted(set(sems))
 
+# ------------------------------------------------------------------
+# PREREQ RESOLUTION USES *PLAN CATALOG*, NOT GLOBAL
+# ------------------------------------------------------------------
 
-
-
-    # ---- Build prereq IR trees from catalog prereq_text (unchanged) ----
-    catalog = load_catalog(Config.CATALOG_DIR)
     ext_rules = load_external_rules(Config.EXTERNAL_RULES_PATH)
     alias_rules = load_aliases_csv(Config.ALIASES_CSV_PATH)
-    resolve = build_resolver(catalog, external_rules=ext_rules, alias_rules=alias_rules)
 
-    catalog_by_code = {c.code: c for c in catalog}
+    # Build resolver catalog from ACTIVE catalog source
+    resolver_catalog = []
+    for code, m in meta_courses.items():
+        if not isinstance(m, dict):
+            continue
+        resolver_catalog.append(
+            SimpleNamespace(
+                code=str(code).strip(),
+                name=m.get("name"),
+                prereq_text=m.get("prereq_text"),
+            )
+        )
+
+    resolve = build_resolver(
+        resolver_catalog,
+        external_rules=ext_rules,
+        alias_rules=alias_rules,
+    )
+
+    catalog_by_code = {c.code: c for c in resolver_catalog}
+
     prereq_trees: Dict[str, Req] = {}
 
     for code in courses:
-        cat = catalog_by_code.get(code)
-        if not cat:
-            continue
-        text = (getattr(cat, "prereq_text", None) or "").strip()
+        code_s = str(code).strip()
+
+        m = meta_courses.get(code_s, {})
+        text = (m.get("prereq_text") or "").strip() if isinstance(m, dict) else ""
+
         if not text:
             continue
+
         tree = parse_req_text(text, resolve)
-        if tree is not None:
-            prereq_trees[code] = tree
+
+        if tree is None or (
+            isinstance(tree, ReqLeaf) and tree.code is None
+        ):
+            print(f"[PREREQ UNRESOLVED] {code_s}: {text!r} -> {tree}")
+            continue
+
+        print(f"[PREREQ RESOLVED] {code_s}: {text!r} -> {tree}")
+        prereq_trees[code_s] = tree
+
+    print("SAMPLE RESOLVER CODES:", list(catalog_by_code.keys())[:20])
+    print("HAS 8500101?", "8500101" in catalog_by_code)
 
     return {
         "courses": courses,
         "prereq_trees": prereq_trees,
         "allowed_semesters": allowed_semesters,
-        "credits": credits,
+        "credits": course_credits,
         "max_credits_per_semester": max_credits_per_semester,
     }
 

@@ -17,9 +17,10 @@ from models.plan_constraint import PlanConstraint
 from models.plan_solution import PlanSolution
 from models.plan_course import PlanCourse
 from models.catalog_course import CatalogCourse
+from models.course import Course
 from services.solver import build_inputs_from_plan, solve_plan as solve_plan_service
 from services.validation import validate_inputs_before_solve
-from services.catalog_meta import load_catalog_meta 
+from services.catalog_meta import load_catalog_for_plan
 from utils.semesters import format_semester_label
 from utils.optional_courses import get_optional_course_codes
 
@@ -129,7 +130,7 @@ def view_saved_schedule(plan_id: int):
         meta = json.loads(latest.meta_json) if latest.meta_json else {}
     optional_codes = get_optional_course_codes()
 
-    catalog_meta = load_catalog_meta()
+    catalog_meta = load_catalog_for_plan(plan.id)
     catalog_meta_courses = catalog_meta.get("courses") or {}
 
     # Code -> name mapping from DB (used to show names in Warnings for both
@@ -231,7 +232,7 @@ def solve_plan(plan_id: int):
         return redirect(url_for("main.view_plan", plan_id=plan_id))
 
     # Sidecar metadata (display-only)
-    cat = load_catalog_meta()
+    cat = load_catalog_for_plan(plan.id)
     meta_courses = cat.get("courses") or {}
 
     # Pre-solve validation (existing guardrails)
@@ -282,15 +283,33 @@ def solve_plan(plan_id: int):
     infeasible_hints: list[str] = []
 
     if status == "Optimal":
-        # Map course_code -> Course row for display (title/credits...)
+        # Map course_code -> display info (works for catalog-linked AND legacy/manual)
         plan_courses = (
             PlanCourse.query
             .filter_by(plan_id=plan.id)
-            .join(CatalogCourse, PlanCourse.catalog_course_id == CatalogCourse.id)
+            .outerjoin(CatalogCourse, PlanCourse.catalog_course_id == CatalogCourse.id)
+            .outerjoin(Course, PlanCourse.legacy_course_id == Course.id)
             .all()
         )
-        catalog_by_code = {str(pc.catalog_course.code): pc.catalog_course for pc in plan_courses}
-        legacy_by_code = {str(pc.legacy_course.code): pc.legacy_course for pc in plan_courses if pc.legacy_course is not None}
+
+        display_by_code: dict[str, dict[str, Any]] = {}
+        for pc in plan_courses:
+            code = None
+            name = None
+            credits = None
+
+            # Prefer legacy (plan-local overrides) when present
+            if pc.legacy_course is not None:
+                code = str(pc.legacy_course.code).strip()
+                name = pc.legacy_course.name
+                credits = pc.legacy_course.credits
+            elif pc.catalog_course is not None:
+                code = str(pc.catalog_course.code).strip()
+                name = pc.catalog_course.name
+                credits = float(pc.catalog_course.credits) if pc.catalog_course.credits is not None else None
+
+            if code:
+                display_by_code[code] = {"name": name or code, "credits": credits}
 
         for code, chosen_sem in schedule.items():
             if chosen_sem is None:
@@ -299,24 +318,16 @@ def solve_plan(plan_id: int):
                 # Out-of-range semester (should not happen, but keep safe)
                 continue
 
-            cat_row = catalog_by_code.get(str(code))
-            legacy_row = legacy_by_code.get(str(code))
             m = meta_courses.get(str(code), {})
             coreq_text = m.get("coreq_text") if isinstance(m, dict) else None
+
+            d = display_by_code.get(str(code).strip(), {})
 
             courses_by_semester[chosen_sem].append(
                 {
                     "code": code,
-                    "name": (
-                        cat_row.name
-                        if cat_row
-                        else (legacy_row.name if legacy_row else code)
-                    ),
-                    "credits": (
-                        float(cat_row.credits)
-                        if (cat_row and cat_row.credits is not None)
-                        else (legacy_row.credits if legacy_row else None)
-                    ),
+                    "name": d.get("name") or code,
+                    "credits": d.get("credits"),
                     "coreq_text": coreq_text,  # display-only (NOT enforced)
                 }
             )

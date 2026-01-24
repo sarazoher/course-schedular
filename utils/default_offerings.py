@@ -38,16 +38,23 @@ def default_semesters_for_meta(
     sp = semesters_per_year or 2
     m = meta if isinstance(meta, dict) else {}
 
-    y = _safe_int(m.get("academic_year"))
-    if y is None or y < 1:
-        return list(range(1, total_semesters + 1))
+    # 0) Explicit offered semesters override everything else
+    offered = m.get("offered_semesters")
+    if isinstance(offered, list):
+        cleaned: List[int] = []
+        for v in offered:
+            iv = _safe_int(v)
+            if iv is not None and 1 <= iv <= total_semesters:
+                cleaned.append(iv)
+        if cleaned:
+            return sorted(set(cleaned))
 
-    start = (y - 1) * sp + 1
-    end = min(total_semesters, y * sp)
-    if start > total_semesters:
-        return list(range(1, total_semesters + 1))
-
-    return list(range(start, end + 1))
+    # 1) Otherwise: be permissive by default.
+    #
+    # Stage A policy: "academic_year" is a *recommendation*, not a hard offering constraint.
+    # If you want tighter offerings, provide explicit "offered_semesters" in metadata
+    # (or override offerings in the DB UI).
+    return list(range(1, total_semesters + 1))
 
 
 def default_semesters_for_code(

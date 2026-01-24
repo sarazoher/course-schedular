@@ -1,5 +1,7 @@
-from flask import render_template, redirect, url_for, request, abort, flash
+from flask import render_template, redirect, url_for, request, abort, flash, current_app
 from flask_login import current_user, login_required
+from pathlib import Path
+import json
 
 from . import main_bp
 from models.course import Course
@@ -9,7 +11,7 @@ from models.degree_plan import DegreePlan
 from models.plan_constraint import PlanConstraint
 from models.prerequisite import Prerequisite
 from models.plan_solution import PlanSolution
-from services.catalog_meta import load_catalog_meta
+from services.catalog_meta import load_catalog_for_plan, has_plan_catalog_seed
 from utils.optional_courses import get_optional_course_codes, is_optional_by_code
 from extensions import db
 
@@ -70,17 +72,21 @@ def view_plan(plan_id: int):
     ).first()
     if plan is None:
         abort(404)
-    # Plan course list now comes from PlanCourse (backed by CatalogCourse)
+    # Plan courses can be catalog-linked OR legacy/manual
     plan_courses = (
         PlanCourse.query
         .filter_by(plan_id=plan.id)
-        .join(CatalogCourse, PlanCourse.catalog_course_id == CatalogCourse.id)
-        .order_by(CatalogCourse.code.asc())
         .all()
     )
 
-    unlinked_count = sum(1 for pc in plan_courses if not pc.legacy_course_id)
-
+    # Stable sort by visible code
+    plan_courses.sort(
+        key=lambda pc: str(
+            pc.catalog_course.code if pc.catalog_course else (pc.legacy_course.code if pc.legacy_course else '')
+        )
+    )
+    # Count plan courses that are NOT linked to the global catalog
+    unlinked_count = sum(1 for pc in plan_courses if pc.catalog_course_id is None)
     constraints = PlanConstraint.query.filter_by(degree_plan_id=plan.id).first()
 
     latest_solution = (
@@ -93,33 +99,51 @@ def view_plan(plan_id: int):
     # ---- load sidecar metadata + degree filter ----
     selected_degree = (request.args.get("degree") or "CS").strip()
 
-    meta = load_catalog_meta()
-    meta_courses = meta.get("courses") or {}
-
+    catalog = load_catalog_for_plan(plan.id)
+    meta_courses = catalog.get("courses") or {}
+    using_plan_seed = has_plan_catalog_seed(plan.id)
+    
     optional_codes = get_optional_course_codes()
 
-    degrees = meta.get("degrees") or {"CS": {"label": "Computer Science", "active": True}}
+    degrees = catalog.get("degrees") or {"CS": {"label": "Computer Science", "active": True}}
 
-    # read-only dropdown from DB catalog (filtered by degree)
-    all_catalog_courses = CatalogCourse.query.order_by(CatalogCourse.code.asc()).all()
-
+    # Catalog dropdown source:
+    # - If plan seed exists: dropdown comes from that plan file (replacement)
+    # - Otherwise: dropdown comes from global CatalogCourse DB + global meta
     catalog_courses = []
-    for c in all_catalog_courses:
-        m = meta_courses.get(str(c.code), {})
-        tags = m.get("degree_tags") or ["CS"]
-        if selected_degree and selected_degree not in tags:
-            continue
-        catalog_courses.append(c)
+    if using_plan_seed:
+        for code, m in meta_courses.items():
+            code_s = str(code).strip()
+            if not code_s:
+                continue
+            mm = m if isinstance(m, dict) else {}
+            tags = mm.get("degree_tags") or ["CS"]
+            if selected_degree and selected_degree not in tags:
+                continue
+            catalog_courses.append({
+                "code": code_s,
+                "name": (mm.get("name") or code_s),
+                "credits": mm.get("credits"),
+            })
+        catalog_courses.sort(key=lambda d: str(d.get("code") or ""))
+    else:
+        all_catalog_courses = CatalogCourse.query.order_by(CatalogCourse.code.asc()).all()
+        for c in all_catalog_courses:
+            m = meta_courses.get(str(c.code), {})
+            tags = m.get("degree_tags") or ["CS"]
+            if selected_degree and selected_degree not in tags:
+                continue
+            catalog_courses.append(c)
 
     # Years dropdown helper (based on filtered metadata for selected degree)
     years_set = set()
     for c in catalog_courses:
-        m = meta_courses.get(str(c.code), {}) if isinstance(meta_courses.get(str(c.code), {}), dict) else {}
+        code = str(c.get("code") if isinstance(c, dict) else c.code)
+        m = meta_courses.get(code, {}) if isinstance(meta_courses.get(code, {}), dict) else {}
         y = m.get("academic_year")
         if y:
             years_set.add(str(y))
     available_years = sorted(years_set, key=lambda s: int(s) if s.isdigit() else 999)
-
 
     return render_template(
         "plan_detail.html", 
@@ -156,18 +180,23 @@ def bulk_add_courses_v2(plan_id: int):
 
     selected_degree = (request.form.get("degree") or "CS").strip()
     year_filter = (request.form.get("year") or "").strip()
-    mandatory_only = bool(request.form.get("mandatory_only"))
     include_optional = bool(request.form.get("include_optional"))
 
-    meta = load_catalog_meta()
-    meta_courses = meta.get("courses") or {}
+    catalog = load_catalog_for_plan(plan.id)
+    meta_courses = catalog.get("courses") or {}
+    using_plan_seed = has_plan_catalog_seed(plan.id)
 
-    existing_catalog_ids = {
-        pc.catalog_course_id
-        for pc in PlanCourse.query.filter_by(plan_id=plan.id).all()
-    }
+    existing_plan_courses = PlanCourse.query.filter_by(plan_id=plan.id).all()
+    existing_codes: set[str] = set()
+    existing_catalog_ids = set()
+    for pc in existing_plan_courses:
+        if pc.catalog_course is not None:
+            existing_catalog_ids.add(pc.catalog_course_id)
+            existing_codes.add(str(pc.catalog_course.code).strip())
+        elif pc.legacy_course is not None:
+            existing_codes.add(str(pc.legacy_course.code).strip())
 
-    all_catalog = CatalogCourse.query.order_by(CatalogCourse.code.asc()).all()
+    all_catalog = CatalogCourse.query.order_by(CatalogCourse.code.asc()).all() if not using_plan_seed else []
 
     to_add: list[PlanCourse] = []
     skipped_existing = 0
@@ -175,43 +204,96 @@ def bulk_add_courses_v2(plan_id: int):
     skipped_degree = 0
     skipped_year = 0
 
-    for c in all_catalog:
-        code = str(c.code)
-        m = meta_courses.get(code, {})
-        if not isinstance(m, dict):
-            m = {}
+    def _credits_to_int(v) -> int:
+        try:
+            if v is None:
+                return 0
+            return int(float(v))
+        except Exception:
+            return 0
 
-        # Degree filter (metadata tags)
-        tags = m.get("degree_tags") or ["CS"]
-        if selected_degree and selected_degree not in tags:
-            skipped_degree += 1
-            continue
+    if using_plan_seed:
+        # Bulk add from plan seed catalog file (creates legacy/manual plan courses)
+        for code, m in (meta_courses.items() if isinstance(meta_courses, dict) else []):
+            code = str(code).strip()
+            if not code:
+                continue
+            if not isinstance(m, dict):
+                m = {}
 
-        # Year filter (metadata)
-        if year_filter:
-            if str(m.get("academic_year") or "").strip() != year_filter:
-                skipped_year += 1
+            # Degree filter (metadata tags if present; default CS)
+            tags = m.get("degree_tags") or ["CS"]
+            if selected_degree and selected_degree not in tags:
+                skipped_degree += 1
                 continue
 
-        # Optional courses are excluded unless explicitly included
-        if is_optional_by_code(code) and (not include_optional):
-            skipped_optional += 1
-            continue
+            # Year filter (metadata)
+            if year_filter:
+                if str(m.get("academic_year") or "").strip() != year_filter:
+                    skipped_year += 1
+                    continue
+            # Optional courses are excluded unless explicitly included
+            if is_optional_by_code(code) and (not include_optional):
+                skipped_optional += 1
+                continue
+            # Skip duplicates already in plan (by code)
+            if code in existing_codes:
+                skipped_existing += 1
+                continue
 
-
-        # Skip duplicates already in plan
-        if c.id in existing_catalog_ids:
-            skipped_existing += 1
-            continue
-
-        to_add.append(
-            PlanCourse(
-                plan_id=plan.id,
-                catalog_course_id=c.id,
-                legacy_course_id=None,
+            legacy = Course(
+                degree_plan_id=plan.id,
+                code=code,
+                name=(m.get("name") or code),
+                credits=_credits_to_int(m.get("credits")),
             )
-        )
+            db.session.add(legacy)
+            db.session.flush()
 
+            to_add.append(
+                PlanCourse(
+                    plan_id=plan.id,
+                    catalog_course_id=None,
+                    legacy_course_id=legacy.id,
+                )
+            )
+    else:
+        # Bulk add from global DB catalog (existing behavior)
+        for c in all_catalog:
+            code = str(c.code)
+            m = meta_courses.get(code, {})
+            if not isinstance(m, dict):
+                m = {}
+            # Degree filter (metadata tags)
+            tags = m.get("degree_tags") or ["CS"]
+            if selected_degree and selected_degree not in tags:
+                skipped_degree += 1
+                continue
+
+            # Year filter (metadata)
+            if year_filter:
+                if str(m.get("academic_year") or "").strip() != year_filter:
+                    skipped_year += 1
+                    continue
+
+            # Optional courses are excluded unless explicitly included
+            if is_optional_by_code(code) and (not include_optional):
+                skipped_optional += 1
+                continue
+
+            # Skip duplicates already in plan
+            if c.id in existing_catalog_ids:
+                skipped_existing += 1
+                continue
+
+            to_add.append(
+                PlanCourse(
+                    plan_id=plan.id,
+                    catalog_course_id=c.id,
+                    legacy_course_id=None,
+                )
+            )
+            
     if to_add:
         db.session.add_all(to_add)
         db.session.commit()

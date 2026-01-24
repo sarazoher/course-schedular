@@ -1,5 +1,4 @@
 {% extends "base.html" %}
-
 {% block content %}
 
 <div class="d-flex justify-content-between align-items-center mb-2">
@@ -72,6 +71,26 @@
     </div>
   </div>
 
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="text-muted small">
+      You can override catalog details just for this plan or define a manual semester layout.
+    </div>
+    <div class="d-flex gap-2">
+      <a
+        href="{{ url_for('main.upload_plan_catalog', plan_id=plan.id) }}"
+        class="btn btn-outline-secondary btn-sm"
+      >
+        Plan catalog Excel
+      </a>
+      <a
+        href="{{ url_for('main.manual_schedule', plan_id=plan.id) }}"
+        class="btn btn-outline-secondary btn-sm"
+      >
+        Manual placement
+      </a>
+    </div>
+  </div>
+
   {% if plan_courses %}
     <div class="card mb-4">
       <div class="card-header d-flex justify-content-between align-items-center">
@@ -82,6 +101,10 @@
       <div class="card-body">
         <div class="course-grid">
         {% for pc in plan_courses %}
+          {% set cc = pc.catalog_course %}
+          {% set lc = pc.legacy_course %}
+          {% set show = lc if lc else cc %}
+          {% set show_code = (lc.code if lc else cc.code) %}
           <div class="course-card">
             <div class="course-card__head">
               {% if pc.legacy_course_id %}
@@ -91,16 +114,16 @@
                                    course_id=pc.legacy_course_id) }}"
                   class="course-card__title text-decoration-none"
                 >
-                  {{ pc.catalog_course.code }} — {{ pc.catalog_course.name }}
+                  {{ show.code }} — {{ show.name }}
                 </a>
-                {% if optional_codes is defined and (pc.catalog_course.code|string) in optional_codes %}
+                {% if optional_codes is defined and (show_code|string) in optional_codes %}
                   <span class="badge bg-info text-dark ms-2">Optional</span>
                 {% endif %}
               {% else %}
                 <span class="course-card__title">
-                  {{ pc.catalog_course.code }} — {{ pc.catalog_course.name }}
+                  {{ show.code }} — {{ show.name }}
                 </span>
-                {% if optional_codes is defined and (pc.catalog_course.code|string) in optional_codes %}
+                {% if optional_codes is defined and (show_code|string) in optional_codes %}
                   <span class="badge bg-info text-dark ms-2">Optional</span>
                 {% endif %}
                 <div class="small text-muted mt-1">
@@ -139,9 +162,9 @@
               </div>
             </div>
 
-              {% set m = catalog_meta_courses.get(pc.catalog_course.code|string) %}
-              <div class="course-card_meta text-muted">
-                <span><strong>Credits:</strong> {{ pc.catalog_course.credits }}</span>
+              {% set m = catalog_meta_courses.get(show_code|string) %}
+              <div class="course-card__meta text-muted">
+                <span><strong>Credits:</strong> {{ show.credits if show and show.credits is not none else "?" }}</span>
 
                 {% if m %}
                   {% if m.academic_year %}<span class="ms-2">• <strong>Year:</strong> {{ m.academic_year }}</span>{% endif %}

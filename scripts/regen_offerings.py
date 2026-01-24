@@ -44,7 +44,8 @@ from extensions import db
 from models.course import Course
 from models.course_offering import CourseOffering
 from models.plan_constraint import PlanConstraint
-from services.catalog_meta import load_catalog_meta
+from services import catalog_meta as _catalog_meta
+from utils.default_offerings import default_semesters_for_meta
 
 
 def regen_offerings(plan_id: int) -> None:
@@ -58,14 +59,10 @@ def regen_offerings(plan_id: int) -> None:
     if pc is None:
         raise ValueError(f"PlanConstraint missing for plan_id={plan_id}")
 
-    # Persist plan structure: 3 years × 3 semesters/year = 9 total
-    pc.semesters_per_year = 3
-    pc.total_semesters = 9
-
     sp = pc.semesters_per_year
     total = pc.total_semesters
 
-    meta = load_catalog_meta()
+    meta = _catalog_meta.load_catalog_meta()
     meta_courses = meta.get("courses") or {}
 
     courses = Course.query.filter_by(degree_plan_id=plan_id).all()
@@ -79,13 +76,11 @@ def regen_offerings(plan_id: int) -> None:
         except Exception:
             year = None
 
-        if not year or year < 1:
-            desired = list(range(1, total + 1))
-        else:
-            start = (year - 1) * sp + 1
-            desired = [s for s in range(start, start + sp) if 1 <= s <= total]
-            if not desired:
-                desired = list(range(1, total + 1))
+        desired = default_semesters_for_meta(
+            meta=m if isinstance(m, dict) else None,
+            total_semesters=total,
+            semesters_per_year=sp,
+        )
 
         existing = sorted({int(o.semester_number) for o in c.offerings})
         if existing == desired:

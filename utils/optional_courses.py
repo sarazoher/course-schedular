@@ -3,8 +3,7 @@ from pathlib import Path
 from typing import Any, Set
 
 from config import Config
-from services.catalog_meta import load_catalog_meta
-
+from services import catalog_meta as _catalog_meta
 
 def is_optional_by_code(code: Any) -> bool:
     """
@@ -27,7 +26,7 @@ def get_optional_course_codes() -> Set[str]:
     - Infer from course code code: 850... mandatory, 851... optional, others optional by default
     - Allow override via data_catalog/optional_courses.json
     """
-    meta = load_catalog_meta()
+    meta = _catalog_meta.load_catalog_meta()
     meta_courses = meta.get("courses") or {}
 
     optional_codes: Set[str] = set()

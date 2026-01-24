@@ -15,7 +15,7 @@ class PlanCourse(db.Model):
     catalog_course_id = db.Column(
         db.Integer,
         db.ForeignKey("catalog_courses.id", ondelete="RESTRICT"),
-        nullable=False,
+        nullable=True,
     )
 
     # Temporary bridge to existing UI/routes that expect Course.id

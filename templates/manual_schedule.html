@@ -1,0 +1,98 @@
+{# 
+  Stage B stub:
+  - Manual semester placement
+  - Stored as plan-local JSON
+  - NOT used by solver yet
+  - Intended input for future timetabling (Stage B)
+#}
+
+{% extends "base.html" %}
+
+{% block content %}
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="d-flex align-items-center gap-2">
+      <h2 class="mb-0">Manual placement for "{{ plan.name }}"</h2>
+      <span class="badge bg-info text-dark">Stage B (preview)</span>
+    </div>
+
+    <div class="text-end">
+      <a
+        href="{{ url_for('main.view_plan', plan_id=plan.id) }}"
+        class="btn btn-outline-secondary btn-sm me-2"
+      >
+        &larr; Back to plan
+      </a>
+    </div>
+  </div>
+
+
+  <div class="card mb-3">
+    <div class="card-header">
+      Manual semester assignment
+    </div>
+    <div class="card-body">
+      <p class="text-muted mb-3">
+        Assign each course to a semester number between
+        <strong>1</strong> and <strong>{{ total_semesters }}</strong>.
+        These assignments are stored in a plan-local JSON file and do
+        <strong>not</strong> affect the solver or global catalog.
+      </p>
+
+      <form method="POST">
+        <div class="table-responsive">
+          <table class="table align-middle">
+            <thead>
+              <tr>
+                <th scope="col">Code</th>
+                <th scope="col">Name</th>
+                <th scope="col">Credits</th>
+                <th scope="col" style="width: 180px;">Semester</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for pc in plan_courses %}
+                {% set show = pc.legacy_course if pc.legacy_course else pc.catalog_course %}
+                {% set code = (show.code if show else "") %}
+                {% set current_sem = existing_map.get(code|string) %}
+                <tr>
+                  <td><strong>{{ code }}</strong></td>
+                  <td>{{ show.name if show else "" }}</td>
+                  <td>{{ (show.credits if show and show.credits is not none else "?") }}</td>
+                  <td>
+                    <select
+                      class="form-select form-select-sm"
+                      name="sem_{{ pc.id }}"
+                    >
+                      <option value="">— Unassigned —</option>
+                      {% for s in range(1, total_semesters + 1) %}
+                        <option
+                          value="{{ s }}"
+                          {% if current_sem == s %}selected{% endif %}
+                        >
+                          Semester {{ s }}
+                        </option>
+                      {% endfor %}
+                    </select>
+                  </td>
+                </tr>
+              {% else %}
+                <tr>
+                  <td colspan="4" class="text-muted">
+                    No courses in this plan yet.
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="d-flex justify-content-end mt-3">
+          <button type="submit" class="btn btn-primary">
+            Save manual placement
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock %}
+
