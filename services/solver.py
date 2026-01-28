@@ -336,6 +336,13 @@ def build_inputs_from_plan(plan_id: int) -> Dict:
     Load data from the database for a given DegreePlan and convert it into
     the exact dictionaries that build_model(...) expects.
     """
+    # Temporary debugging switch for solver input construction.
+    debug = False
+
+    def dbg(*args, **kwargs):
+        if debug:
+            print(*args, **kwargs)
+
     from types import SimpleNamespace
     from extensions import db
     from models.degree_plan import DegreePlan
@@ -517,14 +524,14 @@ def build_inputs_from_plan(plan_id: int) -> Dict:
         if tree is None or (
             isinstance(tree, ReqLeaf) and tree.code is None
         ):
-            print(f"[PREREQ UNRESOLVED] {code_s}: {text!r} -> {tree}")
+            dbg(f"[PREREQ UNRESOLVED] {code_s}: {text!r} -> {tree}")
             continue
 
-        print(f"[PREREQ RESOLVED] {code_s}: {text!r} -> {tree}")
+        dbg(f"[PREREQ RESOLVED] {code_s}: {text!r} -> {tree}")
         prereq_trees[code_s] = tree
 
-    print("SAMPLE RESOLVER CODES:", list(catalog_by_code.keys())[:20])
-    print("HAS 8500101?", "8500101" in catalog_by_code)
+    dbg("SAMPLE RESOLVER CODES:", list(catalog_by_code.keys())[:20])
+    dbg("HAS 8500101?", "8500101" in catalog_by_code)
 
     return {
         "courses": courses,

@@ -251,20 +251,33 @@
                       {% if m %}
                         {% if m.get("academic_year") %}<span class="ms-2">• <strong>Year:</strong> {{ m.get("academic_year") }}</span>{% endif %}
                         {% if m.get("weekly_hours") %}<span class="ms-2">• <strong>Hours:</strong> {{ m.get("weekly_hours") }}</span>{% endif %}
-                        {% if m.get("lesson_type") %}<span class="ms-2">• <strong>Type:</strong> {{ m.get("lesson_type") }}</span>{% endif %}
                         {% if m.get("lecturer") %}<span class="ms-2">• <strong>Lecturer:</strong> {{ m.get("lecturer") }}</span>{% endif %}
                       {% endif %}
                     </div>
 
-                    {% if m and m.get("prereq_text") %}
-                      <div class="small text-muted mt-1">
-                        <strong>Prereqs (catalog, info):</strong> {{ m.get("prereq_text") }}
+                    {% set prereq_refs = (prereq_refs_by_code.get(code_s, []) if prereq_refs_by_code is defined else []) %}
+
+                    {% if prereq_refs %}
+                      <div class="small text-muted mt-2">
+                        <div class="fw-semibold">Prerequisites</div>
+                        <div class="d-flex flex-wrap gap-1 mt-1">
+                          {% for pcode, pname in prereq_refs %}
+                            <span class="badge bg-light text-dark border">{{ pcode }} — {{ pname }}</span>
+                          {% endfor %}
+                        </div>
                       </div>
                     {% endif %}
 
-                    {% if m and m.get("coreq_text") %}
-                      <div class="small text-muted mt-1">
-                        <strong>Coreqs (catalog, info):</strong> {{ m.get("coreq_text") }}
+                    {% set coreq_refs = (coreq_refs_by_code.get(code_s, []) if coreq_refs_by_code is defined else []) %}
+
+                    {% if coreq_refs %}
+                      <div class="small text-muted mt-2">
+                        <div class="fw-semibold">Corequisites</div>
+                        <div class="d-flex flex-wrap gap-1 mt-1">
+                          {% for ccode, cname in coreq_refs %}
+                            <span class="badge bg-light text-dark border">{{ ccode }} — {{ cname }}</span>
+                          {% endfor %}
+                        </div>
                       </div>
                     {% endif %}
 

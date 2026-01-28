@@ -11,7 +11,7 @@ from models.prerequisite import Prerequisite
 from models.plan_constraint import PlanConstraint
 from extensions import db
 from utils.semesters import format_semester_label
-from services.catalog_meta import meta_for_code
+from services.catalog_meta import meta_for_code_for_plan
 from utils.default_offerings import default_semesters_for_meta
 
 
@@ -361,7 +361,7 @@ def course_detail(plan_id: int, course_id: int):
     semesters_per_year = constraints.semesters_per_year if constraints else None
 
     # Load catalog metadata for this course
-    catalog_meta = meta_for_code(course.code)
+    catalog_meta = meta_for_code_for_plan(plan.id, course.code)
 
     # Compute default semesters (auto mode)
     default_semesters = default_semesters_for_meta(

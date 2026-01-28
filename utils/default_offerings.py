@@ -24,8 +24,8 @@ def default_semesters_for_meta(
     """Compute the *default* allowed semester numbers for a course.
 
     Policy:
-      - If metadata includes academic_year and semesters_per_year is set (or assumed 2),
-        allow that year's semester window.
+      - If metadata includes offered_semesters: use it (explicit override).
+      - Else if metadata includes academic_year: default to that year's semester window.
       - Otherwise allow all semesters 1..total_semesters.
 
     Shared between:
@@ -49,11 +49,16 @@ def default_semesters_for_meta(
         if cleaned:
             return sorted(set(cleaned))
 
-    # 1) Otherwise: be permissive by default.
-    #
-    # Stage A policy: "academic_year" is a *recommendation*, not a hard offering constraint.
-    # If you want tighter offerings, provide explicit "offered_semesters" in metadata
-    # (or override offerings in the DB UI).
+    # 1) If academic_year is present, use that year as the default offering window.
+    year = _safe_int(m.get("academic_year"))
+    if year is not None and year >= 1:
+        # semesters in that academic year
+        start = (year - 1) * sp + 1
+        end = min(year * sp, total_semesters)
+        if start <= total_semesters and start <= end:
+            return list(range(start, end + 1))
+
+    # 2) Otherwise allow all semesters.
     return list(range(1, total_semesters + 1))
 
 

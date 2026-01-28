@@ -2,7 +2,7 @@
 
 {% block content %}
   <!-- Header: course title + back to plan + delete -->
-  <div class="d-flex justify-content-between align-items-center mb-3">
+  <div class="d-flex justify-content-between align-items-center mb-5">
     <div>
       <h2>{{ course.code }} - {{ course.name }}</h2>
       <div class="text-muted">
@@ -81,75 +81,109 @@
         aria-labelledby="details-tab">
 
       {% set m = catalog_meta %}
-      {% if m and (m.academic_year or m.weekly_hours or m.lesson_type or m.lecturer or m.coreq_text) %}
-        <div class="card mb-3">
-          <div class="card-header">Catalog info (read-only)</div>
-          <div class="card-body small">
-            <div class="text-muted">
-              {% if m.academic_year %}
-                <div><strong>Recommended year:</strong> {{ m.academic_year }}</div>
-              {% endif %}
-              {% if m.weekly_hours %}
-                <div><strong>Weekly hours:</strong> {{ m.weekly_hours }}</div>
-              {% endif %}
-              {% if m.lesson_type %}
-                <div><strong>Type:</strong> {{ m.lesson_type }}</div>
-              {% endif %}
-              {% if m.lecturer %}
-                <div><strong>Lecturer:</strong> {{ m.lecturer }}</div>
-              {% endif %}
-            </div>
+      {% set has_meta = m and (
+        m.get("academic_year") or m.get("weekly_hours") or m.get("lesson_type") or
+        m.get("lecturer") or m.get("prereq_text") or m.get("coreq_text")
+      ) %}
 
-            {% if m.coreq_text %}
-              <div class="text-muted mt-2">
-                <strong>Coreqs (info only):</strong> {{ m.coreq_text }}
-              </div>
-            {% endif %}
+      <div class="row g-3 align-items-start">
+        <!-- Editable -->
+        <div class="{% if has_meta %}col-lg-7{% else %}col-12{% endif %}">
+          <div class="card">
+            <div class="card-header">Editable details</div>
+            <div class="card-body">
+              <form action="{{ url_for('main.edit_course',
+                                      plan_id=plan.id,
+                                      course_id=course.id) }}"
+                    method="POST">
+
+                <div class="mb-3">
+                  <label class="form-label" for="code">Course code</label>
+                  <input type="text"
+                        id="code"
+                        name="code"
+                        class="form-control"
+                        value="{{ course.code }}"
+                        required>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label" for="name">Course name</label>
+                  <input type="text"
+                        id="name"
+                        name="name"
+                        class="form-control"
+                        value="{{ course.name }}"
+                        required>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label" for="credits">Credits</label>
+                  <input type="number"
+                        id="credits"
+                        name="credits"
+                        class="form-control"
+                        min="0"
+                        value="{{ course.credits }}"
+                        required>
+                </div>
+
+                <button type="submit" class="btn btn-primary">
+                  Save details
+                </button>
+              </form>
+            </div>
           </div>
         </div>
-      {% endif %}
 
-      <form action="{{ url_for('main.edit_course',
-                              plan_id=plan.id,
-                              course_id=course.id) }}"
-            method="POST"
-            class="mt-3">
+        <!-- Read-only info -->
+        {% if has_meta %}
+          <div class="col-lg-5">
+            <div class="card">
+              <div class="card-header">Catalog info</div>
+              <div class="card-body small">
 
-        <div class="mb-3">
-          <label class="form-label" for="code">Course code</label>
-          <input type="text"
-                id="code"
-                name="code"
-                class="form-control"
-                value="{{ course.code }}"
-                required>
-        </div>
+                <dl class="row mb-0">
+                  {% if m.get("academic_year") %}
+                    <dt class="col-5 text-muted">Recommended year</dt>
+                    <dd class="col-7 mb-2">{{ m.get("academic_year") }}</dd>
+                  {% endif %}
+                  {% if m.get("weekly_hours") %}
+                    <dt class="col-5 text-muted">Weekly hours</dt>
+                    <dd class="col-7 mb-2">{{ m.get("weekly_hours") }}</dd>
+                  {% endif %}
+                  {% if m.get("lesson_type") %}
+                    <dt class="col-5 text-muted">Lesson type</dt>
+                    <dd class="col-7 mb-2">{{ m.get("lesson_type") }}</dd>
+                  {% endif %}
+                  {% if m.get("lecturer") %}
+                    <dt class="col-5 text-muted">Lecturer</dt>
+                    <dd class="col-7 mb-2">{{ m.get("lecturer") }}</dd>
+                  {% endif %}
+                </dl>
 
-        <div class="mb-3">
-          <label class="form-label" for="name">Course name</label>
-          <input type="text"
-                id="name"
-                name="name"
-                class="form-control"
-                value="{{ course.name }}"
-                required>
-        </div>
+                {% if m.get("prereq_text") %}
+                  <div class="mt-2">
+                    <div class="text-muted fw-semibold mb-1">Prerequisites (catalog text)</div>
+                    <div class="p-2 border rounded bg-body-tertiary">{{ m.get("prereq_text") }}</div>
+                  </div>
+                {% endif %}
 
-        <div class="mb-3">
-          <label class="form-label" for="credits">Credits</label>
-          <input type="number"
-                id="credits"
-                name="credits"
-                class="form-control"
-                min="0"
-                value="{{ course.credits }}"
-                required>
-        </div>
+                {% if m.get("coreq_text") %}
+                  <div class="mt-2">
+                    <div class="text-muted fw-semibold mb-1">Corequisites (catalog text)</div>
+                    <div class="p-2 border rounded bg-body-tertiary">{{ m.get("coreq_text") }}</div>
+                  </div>
+                {% endif %}
 
-        <button type="submit" class="btn btn-primary">
-          Save details
-        </button>
-      </form>
+                <div class="text-muted mt-2">
+                  Info from the plan’s uploaded catalog metadata.
+                </div>
+              </div>
+            </div>
+          </div>
+        {% endif %}
+      </div>
     </div>
 
     <!-- Offerings tab -->
@@ -177,8 +211,8 @@
           {% if offerings_mode == "default" %}
             These semesters are computed automatically from the catalog
             <strong>Recommended year</strong>
-            {% if catalog_meta and catalog_meta.academic_year %}
-              (Year {{ catalog_meta.academic_year }})
+            {% if catalog_meta and catalog_meta.get("academic_year") %}
+              (Year {{ catalog_meta.get("academic_year") }})
             {% endif %}
             and your plan structure.
           {% else %}

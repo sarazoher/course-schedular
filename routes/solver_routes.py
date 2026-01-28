@@ -23,6 +23,7 @@ from services.validation import validate_inputs_before_solve
 from services.catalog_meta import load_catalog_for_plan
 from utils.semesters import format_semester_label
 from utils.optional_courses import get_optional_course_codes
+from utils.prereq_display import extract_recognized_courses
 
 def _dedupe_warnings(warnings: list[Any]) -> list[Any]:
     seen: set[tuple[str, str, str]] = set()
@@ -153,6 +154,22 @@ def view_saved_schedule(plan_id: int):
         else:
             warn_counts_by_kind["warning"] = warn_counts_by_kind.get("warning", 0) + 1
 
+    # Display-only prereq/coreq helpers for Schedule (UI readability only).
+    # Map course_code -> [(req_code, req_name), ...]
+    prereq_refs_by_code: dict[str, list[tuple[str, str]]] = {}
+    coreq_refs_by_code: dict[str, list[tuple[str, str]]] = {}
+
+    for code, meta_row in (catalog_meta_courses or {}).items():
+        code_s = str(code).strip()
+        prereq_refs_by_code[code_s] = extract_recognized_courses(
+            meta_row.get("prereq_text"),
+            course_name_by_code,
+        )
+        coreq_refs_by_code[code_s] = extract_recognized_courses(
+            meta_row.get("coreq_text"),
+            course_name_by_code,
+        )
+
     return render_template(
         "plan_schedule.html",
         plan=plan,
@@ -169,6 +186,8 @@ def view_saved_schedule(plan_id: int):
         meta=meta,
         catalog_meta_courses=catalog_meta_courses,
         course_name_by_code=course_name_by_code,
+        prereq_refs_by_code=prereq_refs_by_code,
+        coreq_refs_by_code=coreq_refs_by_code,
     )
 
 

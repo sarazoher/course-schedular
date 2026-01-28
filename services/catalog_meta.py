@@ -80,6 +80,13 @@ def meta_for_code(code: str) -> dict[str, Any]:
     meta = load_catalog_meta()
     return (meta.get("courses") or {}).get(str(code), {})
 
+def meta_for_code_for_plan(plan_id: int, code: str) -> dict[str, Any]:
+    """
+    Course metadata lookup using the catalog source selected for this plan
+    (plan seed if present, otherwise global catalog).
+    """
+    meta = load_catalog_for_plan(plan_id)
+    return (meta.get("courses") or {}).get(str(code), {})
 
 def list_degrees() -> dict[str, Any]:
     meta = load_catalog_meta()
