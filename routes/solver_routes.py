@@ -191,6 +191,233 @@ def view_saved_schedule(plan_id: int):
     )
 
 
+@main_bp.route("/plans/<int:plan_id>/schedule/edit", methods=["GET", "POST"])
+@login_required
+def edit_semesters(plan_id: int):
+    """Allow manual overrides of course -> semester assignments on top of
+    the latest saved solution.
+
+    This does NOT re-run the solver. It simply reshuffles courses between
+    existing semester buckets and keeps the same number of semesters.
+    """
+    plan = DegreePlan.query.filter_by(
+        id=plan_id,
+        user_id=current_user.id,
+    ).first()
+    if plan is None:
+        abort(404)
+
+    latest = (
+        PlanSolution.query.filter_by(plan_id=plan.id)
+        .order_by(PlanSolution.created_at.desc())
+        .first()
+    )
+    if latest is None or not latest.solution_json:
+        flash("No existing schedule to edit. Solve the plan first.", "warning")
+        return redirect(url_for("main.view_plan", plan_id=plan.id))
+
+    payload = json.loads(latest.solution_json)
+
+    # Current semesters and labels from the stored payload
+    raw_semesters = payload.get("semesters") or []
+    semesters: list[int] = []
+    for s in raw_semesters:
+        if isinstance(s, int):
+            semesters.append(s)
+        else:
+            try:
+                semesters.append(int(s))
+            except (TypeError, ValueError):
+                continue
+    semesters = sorted(set(semesters))
+
+    raw_semester_labels = payload.get("semester_labels") or {}
+    semester_labels: dict[int, str] = {}
+    for k, v in raw_semester_labels.items():
+        try:
+            key_int = int(k)
+        except (TypeError, ValueError):
+            continue
+        semester_labels[key_int] = v
+
+    raw_buckets = payload.get("courses_by_semester") or {}
+    courses_by_semester: dict[int, list[dict[str, Any]]] = {}
+    for k, bucket in raw_buckets.items():
+        try:
+            sem = int(k)
+        except (TypeError, ValueError):
+            continue
+        if sem not in semesters:
+            semesters.append(sem)
+        if not isinstance(bucket, list):
+            continue
+        courses_by_semester.setdefault(sem, [])
+        for c in bucket:
+            if isinstance(c, dict):
+                courses_by_semester[sem].append(c)
+
+    semesters = sorted(courses_by_semester.keys() or semesters)
+
+    # Flatten courses (one row per code) in a stable order
+    course_rows: list[dict[str, Any]] = []
+    seen_codes: set[str] = set()
+    for sem in semesters:
+        for c in courses_by_semester.get(sem, []):
+            code = str(c.get("code") or "").strip()
+            if not code:
+                continue
+            if code in seen_codes:
+                continue
+            seen_codes.add(code)
+            course_rows.append(
+                {
+                    "code": code,
+                    "name": c.get("name") or code,
+                    "credits": c.get("credits"),
+                    "current_semester": sem,
+                }
+            )
+
+    course_rows.sort(key=lambda r: (r["current_semester"], r["code"]))
+
+    if request.method == "POST":
+        # Read new semester choices from the form
+        new_schedule: dict[str, int] = {}
+        for row in course_rows:
+            code = row["code"]
+            field_name = f"sem_{code}"
+            raw_val = request.form.get(field_name)
+
+            if not raw_val:
+                # Treat empty as "unassigned" (course dropped from schedule)
+                continue
+
+            try:
+                sem = int(raw_val)
+            except ValueError:
+                continue
+
+            if sem not in semesters:
+                # Out-of-range semester (should not happen with our UI)
+                continue
+
+            new_schedule[code] = sem
+
+        if not new_schedule:
+            flash("No semester assignments were provided; keeping the existing schedule.", "warning")
+            return redirect(url_for("main.view_saved_schedule", plan_id=plan.id))
+
+        # Rebuild courses_by_semester using current plan data
+        cat = load_catalog_for_plan(plan.id)
+        meta_courses = cat.get("courses") or {}
+
+        plan_courses = (
+            PlanCourse.query
+            .filter_by(plan_id=plan.id)
+            .outerjoin(CatalogCourse, PlanCourse.catalog_course_id == CatalogCourse.id)
+            .outerjoin(Course, PlanCourse.legacy_course_id == Course.id)
+            .all()
+        )
+
+        display_by_code: dict[str, dict[str, Any]] = {}
+        for pc in plan_courses:
+            code = None
+            name = None
+            credits = None
+
+            # Prefer legacy (plan-local overrides) when present
+            if pc.legacy_course is not None:
+                code = str(pc.legacy_course.code).strip()
+                name = pc.legacy_course.name
+                credits = pc.legacy_course.credits
+            elif pc.catalog_course is not None:
+                code = str(pc.catalog_course.code).strip()
+                name = pc.catalog_course.name
+                credits = (
+                    float(pc.catalog_course.credits)
+                    if pc.catalog_course.credits is not None
+                    else None
+                )
+
+            if code:
+                display_by_code[code] = {"name": name or code, "credits": credits}
+
+        new_courses_by_semester: dict[int, list[dict[str, Any]]] = {
+            s: [] for s in semesters
+        }
+
+        for code, sem in new_schedule.items():
+            if sem not in new_courses_by_semester:
+                continue
+
+            m = meta_courses.get(str(code), {})
+            coreq_text = m.get("coreq_text") if isinstance(m, dict) else None
+
+            d = display_by_code.get(str(code).strip(), {})
+
+            new_courses_by_semester[sem].append(
+                {
+                    "code": code,
+                    "name": d.get("name") or code,
+                    "credits": d.get("credits"),
+                    "coreq_text": coreq_text,
+                }
+            )
+
+        for s in semesters:
+            new_courses_by_semester[s].sort(
+                key=lambda d: (str(d.get("code") or ""))
+            )
+
+        # Carry forward previous meta/warnings but mark this as a manual override
+        meta_old: dict[str, Any] = {}
+        if getattr(latest, "meta_json", None):
+            try:
+                raw_meta = json.loads(latest.meta_json)
+                if isinstance(raw_meta, dict):
+                    meta_old = raw_meta
+            except Exception:
+                meta_old = {}
+
+        meta_old = dict(meta_old or {})
+        meta_old["phase"] = "manual_override"
+        meta_old["manual_override"] = True
+
+        warnings_old: list[dict[str, Any]] = []
+        if getattr(latest, "warnings_json", None):
+            try:
+                raw_w = json.loads(latest.warnings_json)
+                if isinstance(raw_w, list):
+                    warnings_old = raw_w
+            except Exception:
+                warnings_old = []
+
+        _save_latest_solution(
+            plan_id=plan.id,
+            status=getattr(latest, "status", None) or "ManualOverride",
+            semesters=semesters,
+            semester_labels=semester_labels,
+            courses_by_semester=new_courses_by_semester,
+            infeasible_hints=payload.get("infeasible_hints") or [],
+            objective_value=None,
+            warnings=warnings_old,
+            meta=meta_old,
+        )
+
+        flash("Semester assignments updated.", "success")
+        return redirect(url_for("main.view_saved_schedule", plan_id=plan.id))
+
+    # GET: show edit form
+    return render_template(
+        "edit_semesters.html",
+        plan=plan,
+        has_solution=True,
+        semesters=semesters,
+        semester_labels=semester_labels,
+        courses=course_rows,
+    )
+
+
 @main_bp.route("/plans/<int:plan_id>/solve", methods=["GET", "POST"])
 @login_required
 def solve_plan(plan_id: int):

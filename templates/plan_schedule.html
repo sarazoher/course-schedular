@@ -15,6 +15,13 @@
         Plan settings
       </a>
 
+      {% if has_solution %}
+      <a href="{{ url_for('main.edit_semesters', plan_id=plan.id) }}"
+         class="btn btn-outline-secondary btn-sm me-2">
+        Edit Semesters
+      </a>
+      {% endif %}
+      
       <form method="POST"
             action="{{ url_for('main.solve_plan', plan_id=plan.id) }}"
             class="d-inline">

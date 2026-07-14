@@ -1,0 +1,67 @@
+{% block content %}
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="mb-0">Edit semester assignments – "{{ plan.name }}"</h2>
+
+    <div class="text-end">
+      <a href="{{ url_for('main.view_saved_schedule', plan_id=plan.id) }}"
+         class="btn btn-outline-secondary btn-sm">
+        &larr; Back to schedule
+      </a>
+    </div>
+  </div>
+
+  <div class="alert alert-warning small">
+    Manual changes may violate catalog prerequisites or recommended year.
+    The solver will not re-check them here. The weekly timetabling step will
+    treat your manual semester choices as the source of truth.
+  </div>
+
+  {% if not courses %}
+    <p class="text-muted">
+      No courses were found in the current schedule. Solve the plan first, then edit semesters.
+    </p>
+  {% else %}
+    <form method="POST">
+      <table class="table table-sm align-middle">
+        <thead>
+          <tr>
+            <th style="width: 12%;">Code</th>
+            <th>Course</th>
+            <th style="width: 10%;">Credits</th>
+            <th style="width: 22%;">Semester</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in courses %}
+            <tr>
+              <td>{{ c.code }}</td>
+              <td>{{ c.name }}</td>
+              <td>{{ c.credits or "—" }}</td>
+              <td>
+                <select class="form-select form-select-sm" name="sem_{{ c.code }}">
+                  {% for s in semesters %}
+                    <option value="{{ s }}"
+                            {% if c.current_semester == s %}selected{% endif %}>
+                      {% if semester_labels and semester_labels.get(s) %}
+                        {{ semester_labels[s] }} ({{ s }})
+                      {% else %}
+                        Semester {{ s }}
+                      {% endif %}
+                    </option>
+                  {% endfor %}
+                  <option value="">Unassigned</option>
+                </select>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <button type="submit" class="btn btn-primary">
+        Save changes
+      </button>
+    </form>
+  {% endif %}
+
+{% endblock %}
